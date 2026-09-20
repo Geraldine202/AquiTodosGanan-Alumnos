@@ -1,0 +1,164 @@
+.canjear-content {
+  --background: #0d131d;
+
+  .user-points-card {
+    background: linear-gradient(135deg, #101725 0%, #1d283a 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+    .card-body {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+
+      .points-label {
+        color: #94a3b8;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+
+      .points-val {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 6px 0;
+
+        .star-icon {
+          color: #ffc409;
+          font-size: 2.2rem;
+        }
+
+        h2 {
+          color: #ffffff;
+          font-size: 2.4rem;
+          font-weight: 800;
+          margin: 0;
+        }
+
+        span {
+          color: #94a3b8;
+          font-size: 1.1rem;
+          align-self: flex-end;
+          margin-bottom: 4px;
+        }
+      }
+
+      .subtext {
+        color: #64748b;
+        font-size: 0.85rem;
+        margin: 0;
+      }
+    }
+  }
+
+  .margin-top-section {
+    margin-top: 16px;
+  }
+
+  .section-title {
+    h2 {
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .premio-card {
+    background: #1e293b;
+    border-radius: 16px;
+    margin: 0 0 20px 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+
+    .card-img-wrapper {
+      position: relative;
+      height: 160px;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .pts-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        font-size: 0.85rem;
+        padding: 6px 12px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+    }
+
+    ion-card-header {
+      padding: 16px 16px 8px 16px;
+
+      ion-card-title {
+        color: #ffffff;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+    }
+
+    ion-card-content {
+      padding: 0 16px 16px 16px;
+
+      .descripcion {
+        color: #94a3b8;
+        font-size: 0.88rem;
+        margin-bottom: 12px;
+      }
+
+      .stock-info {
+        color: #64748b;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+
+        strong {
+          color: #ffffff;
+        }
+      }
+
+      .action-box {
+        ion-button {
+          --border-radius: 12px;
+          font-weight: 700;
+        }
+      }
+    }
+  }
+
+  .empty-state {
+    margin-top: 40px;
+
+    ion-icon {
+      font-size: 64px;
+      color: #475569;
+    }
+
+    h3 {
+      color: #ffffff;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+
+    p {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      max-width: 280px;
+      margin: 8px auto 0 auto;
+    }
+  }
+}

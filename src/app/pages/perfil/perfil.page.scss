@@ -1,0 +1,139 @@
+.perfil-content {
+  --background: #0d131d;
+
+  .profile-hero-card {
+    background: linear-gradient(135deg, #131b2a 0%, #1e293b 100%);
+    padding: 30px 20px;
+    border-bottom-left-radius: 24px;
+    border-bottom-right-radius: 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+    .avatar-container {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 12px;
+
+      .avatar-box {
+        ion-icon {
+          font-size: 88px;
+          color: #3880ff;
+        }
+      }
+
+      .badge-nivel {
+        position: absolute;
+        bottom: -4px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+    }
+
+    .user-name {
+      color: #ffffff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 8px 0 2px 0;
+    }
+
+    .user-rut {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .points-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+
+      .points-info {
+        .label {
+          color: #94a3b8;
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+          display: block;
+        }
+
+        .val {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          margin-top: 4px;
+
+          .star-icon {
+            color: #ffc409;
+            font-size: 1.8rem;
+          }
+
+          span {
+            color: #ffffff;
+            font-size: 2rem;
+            font-weight: 800;
+          }
+
+          small {
+            color: #94a3b8;
+            font-size: 1rem;
+            align-self: flex-end;
+            margin-bottom: 4px;
+          }
+        }
+      }
+    }
+  }
+
+  .margin-top-section {
+    margin-top: 24px;
+  }
+
+  .section-title {
+    h2 {
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+  }
+
+  .info-list, .options-list {
+    background: transparent;
+    border-radius: 16px;
+    overflow: hidden;
+
+    .info-item, .option-item {
+      --background: #1e293b;
+      --color: #ffffff;
+      --border-color: rgba(255, 255, 255, 0.05);
+      margin-bottom: 8px;
+      border-radius: 12px;
+
+      h3 {
+        color: #94a3b8;
+        font-size: 0.8rem;
+      }
+
+      p {
+        color: #ffffff;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+    }
+
+    .logout-item {
+      --background: rgba(235, 68, 90, 0.1);
+      border: 1px solid rgba(235, 68, 90, 0.2);
+    }
+  }
+}

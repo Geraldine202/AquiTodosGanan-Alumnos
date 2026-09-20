@@ -1,186 +1,397 @@
-.admin-dashboard-content {
-  --background: #f4f6f9;
+.home-alumno-content {
+  --background: #f8fafc;
+}
 
-  .welcome-banner {
-    background: linear-gradient(135deg, #001529 0%, #002b4d 100%);
+// ==========================================
+// 1. HERO CARD (SALUDO, NIVELES Y PUNTOS)
+// ==========================================
+.user-hero-card {
+  padding: 16px 16px 8px 16px;
+
+  .hero-content {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 50%, #1e1b4b 100%);
+    border-radius: 24px;
+    padding: 22px;
     color: #ffffff;
-    padding-top: 20px;
-    padding-bottom: 24px;
-    border-bottom-left-radius: 16px;
-    border-bottom-right-radius: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 12px rgba(0, 21, 41, 0.15);
+    box-shadow: 0 14px 28px -6px rgba(29, 78, 216, 0.38);
+    position: relative;
+    overflow: hidden;
 
-    .role-badge {
-      font-size: 0.72rem;
-      padding: 4px 8px;
-      border-radius: 12px;
-      margin-bottom: 8px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    // Detalle decorativo traslúcido
+    &::after {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 120px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      pointer-events: none;
     }
 
-    h1 {
-      margin: 4px 0;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-
-    p {
-      margin: 0;
-      color: #b0c4de;
-      font-size: 0.88rem;
-    }
-  }
-
-  .section-title {
-    display: block;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #001529;
-    margin: 16px 4px 8px;
-  }
-
-  .kpi-grid {
-    padding: 0;
-
-    .kpi-card {
-      margin: 4px;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      border: 1px solid rgba(0, 0, 0, 0.05);
-
-      ion-card-content {
-        padding: 12px;
-      }
-
-      .kpi-header {
+    .user-welcome {
+      .header-user-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 8px;
-
-        ion-icon {
-          font-size: 1.6rem;
-        }
-
-        .kpi-badge {
-          font-size: 0.68rem;
-          background: #e3f2fd;
-          color: #1976d2;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-weight: 600;
-
-          &.success { background: #e8f5e9; color: #2e7d32; }
-          &.warning { background: #fff3e0; color: #e65100; }
-          &.alert   { background: #f3e5f5; color: #7b1fa2; }
-        }
       }
 
-      .kpi-body {
-        h3 {
-          margin: 0;
-          font-size: 1.5rem;
-          font-weight: 800;
-          color: #1a1a1a;
-        }
-
-        p {
-          margin: 2px 0 0;
-          font-size: 0.75rem;
-          color: #666;
-          font-weight: 500;
-        }
-      }
-
-      &.color-blue ion-icon { color: #1890ff; }
-      &.color-green ion-icon { color: #52c41a; }
-      &.color-orange ion-icon { color: #fa8c16; }
-      &.color-purple ion-icon { color: #722ed1; }
-    }
-  }
-
-  .grid-actions {
-    padding: 0;
-
-    .action-card {
-      margin: 6px 4px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      cursor: pointer;
-
-      ion-card-content {
-        display: flex;
-        align-items: center;
-        padding: 14px;
-        gap: 12px;
-
-        .action-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-
-          ion-icon {
-            font-size: 1.4rem;
-            color: #ffffff;
-          }
-
-          &.icon-blue { background: linear-gradient(135deg, #1890ff, #096dd9); }
-          &.icon-green { background: linear-gradient(135deg, #52c41a, #389e0d); }
-          &.icon-orange { background: linear-gradient(135deg, #fa8c16, #d46b08); }
-          &.icon-purple { background: linear-gradient(135deg, #722ed1, #531dab); }
-        }
-
-        .action-text {
-          flex: 1;
-
-          h3 {
-            margin: 0 0 2px;
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: #001529;
-          }
-
-          p {
-            margin: 0;
-            font-size: 0.78rem;
-            color: #666;
-          }
-        }
-
-        .arrow-icon {
-          color: #bfbfbf;
-          font-size: 1.1rem;
-        }
-      }
-    }
-  }
-
-  .recent-section {
-    margin-top: 10px;
-    margin-bottom: 20px;
-
-    .recent-card {
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-
-      ion-card-title {
-        font-size: 0.95rem;
+      .badge-nivel {
+        font-size: 0.75rem;
         font-weight: 700;
-        color: #001529;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-radius: 20px;
+        padding: 5px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+
+        // Estilos según el Nivel del Alumno
+        &[color="tertiary"] { // BRONCE
+          background: linear-gradient(135deg, #d97706 0%, #78350f 100%) !important;
+          color: #ffffff !important;
+        }
+
+        &[color="medium"] { // PLATA
+          background: linear-gradient(135deg, #f1f5f9 0%, #64748b 100%) !important;
+          color: #0f172a !important;
+        }
+
+        &[color="warning"] { // ORO
+          background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%) !important;
+          color: #ffffff !important;
+        }
+      }
+
+      h1 {
+        margin: 6px 0 2px 0;
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+
+      p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
+
+    // CAJA DE PUNTOS CON EFECTO GLASSMORPHISM
+    .points-box {
+      margin-top: 18px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 18px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+      &:active {
+        transform: scale(0.97);
+        background: rgba(255, 255, 255, 0.22);
+      }
+
+      .points-label {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .points-val {
         display: flex;
         align-items: center;
         gap: 6px;
+        margin-top: 2px;
+
+        .star-icon {
+          color: #fbbf24;
+          font-size: 1.5rem;
+          filter: drop-shadow(0 2px 4px rgba(251, 191, 36, 0.4));
+        }
+
+        h2 {
+          margin: 0;
+          font-size: 1.85rem;
+          font-weight: 900;
+          line-height: 1;
+        }
+
+        .pts-tag {
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.8);
+        }
+      }
+
+      .arrow-icon {
+        font-size: 1.3rem;
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+  }
+
+  // BANNER DE BIENVENIDA (NO LOGUEADO)
+  &.guest-card .hero-content {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4);
+
+    .guest-icon-box {
+      font-size: 3.5rem;
+      color: #3b82f6;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .btn-login-hero {
+      --background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      --border-radius: 14px;
+      --box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+      font-weight: 700;
+      margin-top: 14px;
+    }
+  }
+}
+
+// ==========================================
+// TÍTULOS DE SECCIONES
+// ==========================================
+.section-title {
+  margin-top: 16px;
+  margin-bottom: 8px;
+
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    ion-icon {
+      font-size: 1.25rem;
+    }
+  }
+}
+
+// ==========================================
+// 2. CARRUSEL DE ACTIVIDADES DESTACADAS
+// ==========================================
+.carrusel-wrapper {
+  padding: 0 16px;
+
+  .home-swiper {
+    width: 100%;
+    height: 200px;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12);
+
+    swiper-slide {
+      .slide-card {
+        position: relative;
+        width: 100%;
+        height: 100%;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .slide-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0) 25%, rgba(15, 23, 42, 0.9) 100%);
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          padding: 16px;
+          color: #ffffff;
+
+          .points-badge {
+            align-self: flex-start;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            padding: 5px 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          }
+
+          h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 800;
+            line-height: 1.2;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+          }
+
+          p {
+            margin: 4px 0 0 0;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// 3. GRID DE TARJETAS TIPO MENÚ
+// ==========================================
+.grid-home {
+  padding: 0;
+
+  ion-col {
+    padding: 6px;
+  }
+
+  .card-action {
+    margin: 0;
+    border-radius: 20px;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.03);
+    background: #ffffff;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:active {
+      transform: translateY(2px) scale(0.97);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    }
+
+    .card-home {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 18px 10px;
+      text-align: center;
+
+      .icon-avatar {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
 
         ion-icon {
-          color: #1890ff;
+          font-size: 1.7rem;
+          color: #ffffff;
         }
+      }
+
+      // GRADIENTES MODERNOS PARA CADA ICONO
+      .gradient-star {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        box-shadow: 0 6px 14px rgba(245, 158, 11, 0.35);
+      }
+
+      .gradient-walk {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        box-shadow: 0 6px 14px rgba(59, 130, 246, 0.35);
+      }
+
+      .gradient-gift {
+        background: linear-gradient(135deg, #ec4899 0%, #be185d 100%);
+        box-shadow: 0 6px 14px rgba(236, 72, 153, 0.35);
+      }
+
+      .gradient-swap {
+        background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+        box-shadow: 0 6px 14px rgba(16, 185, 129, 0.35);
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .subtext {
+        font-size: 0.72rem;
+        color: #64748b;
+        margin-top: 3px;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+// ==========================================
+// 4. BANNER MOTIVACIONAL / TIP
+// ==========================================
+.banner-tip {
+  margin-top: 10px;
+  margin-bottom: 24px;
+
+  .tip-card {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+
+    .tip-icon {
+      width: 44px;
+      height: 44px;
+      background: #eff6ff;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+
+      ion-icon {
+        color: #2563eb;
+        font-size: 1.4rem;
+      }
+    }
+
+    .tip-text {
+      h4 {
+        margin: 0;
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      p {
+        margin: 2px 0 0 0;
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.35;
       }
     }
   }

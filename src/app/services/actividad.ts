@@ -1,10 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 // ==========================================
 // INTERFACES Y MODELOS (ACTIVIDADES)
 // ==========================================
+
+/** Respuesta del endpoint para el conteo de actividades de un usuario */
+export interface ConteoActividades {
+  rut_usuario: string;
+  total_actividades: number;
+}
 
 /** Payload necesario para Crear o Actualizar una Actividad */
 export interface ActividadPayload {
@@ -108,6 +114,14 @@ export interface Docente {
   id_tipo_usuario?: number;
 }
 
+/** Interfaz para Consejeros de Carrera */
+export interface Consejero {
+  rut_usuario: string;
+  nombre_completo: string;
+  correo: string;
+  id_tipo_usuario?: number;
+}
+
 
 @Injectable({
   providedIn: 'root',
@@ -130,32 +144,39 @@ export class ActividadService {
   // ==========================================
 
   /**
-   * Sube una imagen al backend (FastAPI) especifando el bucket ('actividad' o 'premio').
+   * Sube una imagen al backend (FastAPI) especificando el bucket ('actividad' o 'premio').
    * Retorna la URL pública generada.
    */
-// En src/app/services/actividad.service.ts (o la ruta donde tengas tu servicio)
+  subirImagen(
+    file: File, 
+    bucket: 'actividad' | 'premio' | 'premios' | string = 'actividad'
+  ): Observable<{ url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('bucket', bucket);
 
-subirImagen(
-  file: File, 
-  bucket: 'actividad' | 'premio' | 'premios' | string = 'actividad'
-): Observable<{ url: string; filename: string }> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('bucket', bucket); // <-- Adjuntar al cuerpo de la petición
-
-  return this.http.post<{ url: string; filename: string }>(
-    `${this.apiUrl}/upload-imagen`, // <-- Sin query param en la URL
-    formData
-  );
-}
+    return this.http.post<{ url: string; filename: string }>(
+      `${this.apiUrl}/upload-imagen`,
+      formData
+    );
+  }
 
   // ==========================================
   // CATÁLOGOS COMPARTIDOS
   // ==========================================
 
-  /** Obtiene docentes responsables (id_tipo_usuario = 3) */
+  /** Obtiene docentes responsables (Docentes y Roles Administradores) */
   getDocentes(): Observable<Docente[]> {
     return this.http.get<Docente[]>(`${this.apiUrl}/docentes`);
+  }
+  /** Obtiene la información del usuario y su puntaje total usando su RUT o Token */
+  getUsuarioSesion(rutOToken: string): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/usuario/sesion/${rutOToken}`);
+  }
+
+  /** Obtiene específicamente los Consejeros de Carrera */
+  getConsejeros(): Observable<Consejero[]> {
+    return this.http.get<Consejero[]>(`${this.apiUrl}/consejeros`);
   }
 
   /** Obtiene tipos de actividad (ej: Deportiva, Académica, etc.) */
@@ -187,6 +208,16 @@ subirImagen(
     return this.http.get<ActividadCompleta[]>(`${this.apiUrl}/actividades`);
   }
 
+  /** Obtiene únicamente la cantidad total de actividades asociadas a un RUT de usuario */
+  getConteoActividadesPorUsuario(rutUsuario: string): Observable<ConteoActividades> {
+    return this.http.get<ConteoActividades>(`${this.apiUrl}/actividades/conteo/usuario/${rutUsuario}`);
+  }
+
+  /** Obtiene las actividades creadas por un usuario en específico mediante su RUT */
+  getActividadesPorUsuario(rutUsuario: string): Observable<ActividadCompleta[]> {
+    return this.http.get<ActividadCompleta[]>(`${this.apiUrl}/actividades/usuario/${rutUsuario}`);
+  }
+
   /** Obtiene una actividad específica según su ID */
   getActividadPorId(id: number): Observable<ActividadCompleta> {
     return this.http.get<ActividadCompleta>(`${this.apiUrl}/actividades/${id}`);
@@ -208,16 +239,19 @@ subirImagen(
   }
 
   // ==========================================
-  // CRUD DE PREMIOS
+  // CRUD DE PREMIOS Y CANJES
   // ==========================================
 
   /** Obtiene el listado completo de premios con sus datos anidados */
   getPremios(): Observable<PremioCompleto[]> {
     return this.http.get<PremioCompleto[]>(`${this.apiUrl}/premios`);
   }
+
+  /** Obtiene el listado de solicitudes de canje */
   getSolicitudesCanje(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/solicitudes-canje`);
   }
+
   /** Obtiene un premio específico según su ID */
   getPremioPorId(id: number): Observable<PremioCompleto> {
     return this.http.get<PremioCompleto>(`${this.apiUrl}/premios/${id}`);
@@ -237,4 +271,5 @@ subirImagen(
   eliminarPremio(id: number): Observable<{ mensaje: string }> {
     return this.http.delete<{ mensaje: string }>(`${this.apiUrl}/premios/${id}`);
   }
+  
 }

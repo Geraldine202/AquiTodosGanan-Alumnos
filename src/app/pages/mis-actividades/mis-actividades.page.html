@@ -1,0 +1,109 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true" class="mis-actividades-content">
+
+  <!-- CABECERA DE LA PÁGINA -->
+  <div class="page-title-banner ion-padding">
+    <h1><ion-icon name="calendar-outline" color="primary"></ion-icon> Mis Actividades</h1>
+    <p>Revisa tus inscripciones actuales y el historial de eventos en los que has participado.</p>
+  </div>
+
+  <!-- CONTROL DE SECTORES / PESTAÑAS -->
+  <div class="segment-container ion-padding-horizontal">
+    <ion-segment [(ngModel)]="segmentoSeleccionado" (ionChange)="cambiarSegmento($event)" mode="ios">
+      <ion-segment-button value="proximas">
+        <ion-label>Inscritas / Próximas</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="historial">
+        <ion-label>Historial / Finalizadas</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </div>
+
+  <!-- INDICADOR DE CARGA -->
+  <div *ngIf="cargando" class="ion-text-center ion-padding my-4">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p class="text-muted">Cargando tus actividades...</p>
+  </div>
+
+  <!-- CONTENIDO: VISTA DE PRÓXIMAS ACTIVIDADES -->
+  <div *ngIf="!cargando && segmentoSeleccionado === 'proximas'" class="ion-padding-horizontal margin-top-section">
+    <div *ngIf="actividadesProximas.length > 0; else noProximas">
+      <ion-card class="actividad-card" *ngFor="let act of actividadesProximas" [routerLink]="['/detalle-actividad', act.id_actividad]">
+        <div class="card-img-wrapper">
+          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+          <ion-badge color="success" class="status-badge">Confirmado</ion-badge>
+        </div>
+
+        <ion-card-header>
+          <div class="card-top-info">
+            <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
+              +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
+            </ion-badge>
+            <span class="fecha-txt">
+              <ion-icon name="time-outline"></ion-icon> {{ act.fecha_inicio || 'Por definir' }}
+            </span>
+          </div>
+          <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
+            <ion-icon name="location-outline" color="primary"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
+          </p>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <ng-template #noProximas>
+      <div class="empty-state ion-text-center ion-padding">
+        <ion-icon name="calendar-clear-outline"></ion-icon>
+        <h3>No tienes actividades inscritas</h3>
+        <p>Explora el catálogo de actividades y participa para sumar puntos.</p>
+        <ion-button color="primary" [routerLink]="['/actividades']" class="ion-margin-top">
+          Ver Actividades
+        </ion-button>
+      </div>
+    </ng-template>
+  </div>
+
+  <!-- CONTENIDO: VISTA DE HISTORIAL -->
+  <div *ngIf="!cargando && segmentoSeleccionado === 'historial'" class="ion-padding-horizontal margin-top-section">
+    <div *ngIf="actividadesHistorial.length > 0; else noHistorial">
+      <ion-card class="actividad-card historial-card" *ngFor="let act of actividadesHistorial" [routerLink]="['/detalle-actividad', act.id_actividad]">
+        <div class="card-img-wrapper">
+          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+          <ion-badge color="medium" class="status-badge">Finalizada</ion-badge>
+        </div>
+
+        <ion-card-header>
+          <div class="card-top-info">
+            <ion-badge color="tertiary" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
+              +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts Ganados
+            </ion-badge>
+            <span class="fecha-txt">
+              <ion-icon name="checkmark-done-outline"></ion-icon> {{ act.fecha_fin || 'Realizada' }}
+            </span>
+          </div>
+          <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
+            <ion-icon name="location-outline" color="medium"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
+          </p>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <ng-template #noHistorial>
+      <div class="empty-state ion-text-center ion-padding">
+        <ion-icon name="time-outline"></ion-icon>
+        <h3>Aún no tienes historial</h3>
+        <p>Las actividades en las que completes tu asistencia aparecerán registradas aquí.</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <app-footer></app-footer>
+</ion-content>

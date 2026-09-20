@@ -1,0 +1,76 @@
+<app-header></app-header>
+
+<ion-content [fullscreen]="true" class="inscribir-content">
+
+  <!-- BANNER DE ENCABEZADO -->
+  <div class="page-title-banner ion-padding">
+    <h1><ion-icon name="create-outline" color="primary"></ion-icon> Inscribir Actividad</h1>
+    <p>Selecciona una actividad disponible e inscríbete para asegurar tu cupo y acumular puntos.</p>
+  </div>
+
+  <!-- INDICADOR DE CARGA -->
+  <div *ngIf="cargando" class="ion-text-center ion-padding my-4">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p class="text-muted">Cargando actividades disponibles...</p>
+  </div>
+
+  <!-- LISTA DE ACTIVIDADES DISPONIBLES -->
+  <div *ngIf="!cargando" class="ion-padding-horizontal">
+    
+    <div *ngIf="actividadesDisponibles.length > 0; else sinActividades">
+      
+      <ion-card class="actividad-card" *ngFor="let act of actividadesDisponibles">
+        <div class="card-img-wrapper">
+          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+          <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
+            +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
+          </ion-badge>
+        </div>
+
+        <ion-card-header>
+          <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
+        </ion-card-header>
+
+        <ion-card-content>
+          <p class="info-row" *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
+            <ion-icon name="location-outline" color="primary"></ion-icon> 
+            <span>{{ act.lugar_actividad[0]?.descripcion }}</span>
+          </p>
+
+          <p class="info-row">
+            <ion-icon name="calendar-outline" color="primary"></ion-icon> 
+            <span>{{ act.fecha_inicio || 'Fecha por confirmar' }}</span>
+          </p>
+
+          <p class="info-row" *ngIf="act.cupos">
+            <ion-icon name="people-outline" color="primary"></ion-icon> 
+            <span>Cupos disponibles: <strong>{{ act.cupos }}</strong></span>
+          </p>
+
+          <div class="action-box ion-margin-top">
+            <ion-button 
+              expand="block" 
+              color="primary" 
+              [disabled]="act.inscrito || procesando"
+              (click)="confirmarInscripcion(act)">
+              <ion-icon [name]="act.inscrito ? 'checkmark-circle-outline' : 'add-circle-outline'" slot="start"></ion-icon>
+              {{ act.inscrito ? 'Ya estás inscrito' : 'Inscribirme' }}
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+
+    </div>
+
+    <ng-template #sinActividades>
+      <div class="empty-state ion-text-center ion-padding">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        <h3>No hay actividades disponibles</h3>
+        <p>En este momento no hay nuevas actividades abiertas para inscripción.</p>
+      </div>
+    </ng-template>
+
+  </div>
+
+  <app-footer></app-footer>
+</ion-content>

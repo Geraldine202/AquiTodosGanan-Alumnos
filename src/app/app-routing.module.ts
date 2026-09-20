@@ -17,11 +17,6 @@ const routes: Routes = [
     loadChildren: () => import('./pages/login/login.module').then( m => m.LoginPageModule)
   },
   {
-    path: 'admin-alumnos',
-    loadChildren: () => import('./pages/admin-alumnos/admin-alumnos.module').then( m => m.AdminAlumnosPageModule),
-    canActivate: [authGuard]
-  },
-  {
     path: 'admin-actividades',
     loadChildren: () => import('./pages/admin-actividades/admin-actividades.module').then( m => m.AdminActividadesPageModule),
     canActivate: [authGuard]
@@ -34,7 +29,29 @@ const routes: Routes = [
     path: 'admin-premios',
     loadChildren: () => import('./pages/admin-premios/admin-premios.module').then( m => m.AdminPremiosPageModule),
     canActivate: [authGuard]
+  },
+  {
+    path: 'perfil',
+    loadChildren: () => import('./pages/perfil/perfil.module').then( m => m.PerfilPageModule),
+    canActivate: [authGuard]
+  },  {
+    path: 'mis-actividades',
+    loadChildren: () => import('./pages/mis-actividades/mis-actividades.module').then( m => m.MisActividadesPageModule)
+  },
+  {
+    path: 'inscribir-actividad',
+    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule)
+  },
+  {
+    path: 'canjear',
+    loadChildren: () => import('./pages/canjear/canjear.module').then( m => m.CanjearPageModule)
+  },
+  {
+    path: 'mis-premios',
+    loadChildren: () => import('./pages/mis-premios/mis-premios.module').then( m => m.MisPremiosPageModule)
   }
+
+
 
 
 

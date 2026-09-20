@@ -1,84 +1,170 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Router } from '@angular/router';
 import { AlumnoService } from 'src/app/services/alumno';
 import { ActividadService } from 'src/app/services/actividad';
 
 @Component({
   selector: 'app-home',
-  templateUrl: 'home.page.html',
-  styleUrls: ['home.page.scss'],
+  templateUrl: './home.page.html',
+  styleUrls: ['./home.page.scss'],
   standalone: false
 })
 export class HomePage implements OnInit {
 
-  totalAlumnos: number = 0;
-  actividadesActivas: number = 0;
-  premiosCatalogo: number = 0;
-  canjesPendientes: number = 0;
+  estaLogueado: boolean = false;
+  usuarioLogueado: any = null;
+  nombreAlumno: string = 'Alumno/a';
+  misPuntos: number = 0;
+  nivelAlumno: string = 'Bronce';
+  colorNivel: string = 'tertiary';
 
-  solicitudesRecientes: any[] = [];
+  actividadesSlides: any[] = [];
+  totalActividades: number = 0;
+  totalPremios: number = 0;
 
   constructor(
     private alumnoService: AlumnoService,
-    private actividadService: ActividadService
-  ) {}
+    private actividadService: ActividadService,
+    private router: Router,
+    private cdRef: ChangeDetectorRef
+  ) { }
 
   ngOnInit() {
-    this.cargarDashboard();
+    this.cargarDatosUsuario();
+    this.cargarActividades();
+    this.cargarPremios();
   }
 
   ionViewWillEnter() {
-    this.cargarDashboard();
+    this.cargarDatosUsuario();
   }
 
-  private extraerArreglo(res: any): any[] {
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res.result)) return res.result;
-    if (Array.isArray(res.datos)) return res.datos;
-    return [];
+  cargarDatosUsuario() {
+    // === DIAGNÓSTICO EN CONSOLA ===
+    console.log('--- BUSCANDO SESIÓN EN STORAGE ---');
+    console.log('localStorage keys:', Object.keys(localStorage));
+    console.log('sessionStorage keys:', Object.keys(sessionStorage));
+
+    // Revisamos absolutamente todas las posibles claves que usa el Header/Login
+    const possibleKeys = [
+      'usuario', 'user', 'currentUser', 'usuarioLogueado', 
+      'token', 'token_acceso', 'auth', 'session'
+    ];
+
+    let sessionData: any = null;
+    let keyEncontrada: string = '';
+
+    for (const key of possibleKeys) {
+      const valLocal = localStorage.getItem(key);
+      const valSession = sessionStorage.getItem(key);
+      if (valLocal || valSession) {
+        sessionData = valLocal || valSession;
+        keyEncontrada = key;
+        break;
+      }
+    }
+
+    console.log(`Clave detectada: [${keyEncontrada}]`, sessionData);
+
+    if (sessionData) {
+      try {
+        let identificador = sessionData;
+        let objetoUsuario: any = null;
+
+        if (typeof sessionData === 'string' && sessionData.trim().startsWith('{')) {
+          objetoUsuario = JSON.parse(sessionData);
+          identificador = objetoUsuario.token || objetoUsuario.token_acceso || objetoUsuario.rut_usuario || objetoUsuario.rut || objetoUsuario.correo || sessionData;
+        }
+
+        // Si tenemos datos locales inmediatos (como los que muestra el Header), los aplicamos YA
+        if (objetoUsuario) {
+          const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || objetoUsuario.nombre_usuario || objetoUsuario.username || 'prueba';
+          this.nombreAlumno = nombre.trim().split(' ')[0];
+          this.estaLogueado = true;
+        } else {
+          this.estaLogueado = true;
+          this.nombreAlumno = sessionData;
+        }
+
+        // Consultamos al backend para actualizar los puntos y el nombre oficial de la BD
+        if (identificador) {
+          this.actividadService.getUsuarioSesion(identificador).subscribe({
+            next: (userBD: any) => {
+              console.log('Respuesta backend usuario:', userBD);
+              if (userBD && (userBD.rut_usuario || userBD.nombre_completo)) {
+                this.usuarioLogueado = userBD;
+                this.estaLogueado = true;
+
+                const nombres = (userBD.nombre_completo || this.nombreAlumno).trim().split(' ');
+                this.nombreAlumno = nombres[0];
+
+                this.misPuntos = userBD.puntaje_total ?? 0;
+                this.calcularNivel(this.misPuntos);
+              }
+              this.cdRef.detectChanges();
+            },
+            error: (err: any) => {
+              console.warn('Backend respondió error o no encontró token, pero mantenemos sesión local:', err);
+              // Aunque falle el backend, si hay datos en storage mantenemos al usuario logueado
+              this.estaLogueado = true;
+              this.cdRef.detectChanges();
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error parseando sesión:', e);
+        this.estaLogueado = true; // Forzamos para no degradar la experiencia si hay algo guardado
+      }
+    } else {
+      console.warn('No se encontró ninguna clave de usuario en el storage.');
+      this.estaLogueado = false;
+      this.misPuntos = 0;
+    }
+
+    this.cdRef.detectChanges();
   }
 
-  cargarDashboard() {
-    // 1. Alumnos registrados
-    this.alumnoService.getAlumnos().subscribe({
-      next: (res: any) => {
-        const alumnos = this.extraerArreglo(res);
-        this.totalAlumnos = alumnos.length;
-      },
-      error: (err) => console.error('Error al cargar alumnos:', err)
-    });
+  calcularNivel(puntos: number) {
+    if (puntos >= 500) {
+      this.nivelAlumno = 'Oro';
+      this.colorNivel = 'warning';
+    } else if (puntos >= 200) {
+      this.nivelAlumno = 'Plata';
+      this.colorNivel = 'medium';
+    } else {
+      this.nivelAlumno = 'Bronce';
+      this.colorNivel = 'tertiary';
+    }
+  }
 
-    // 2. Actividades en curso (id_estado_actividad === 2)
+  cargarActividades() {
     this.actividadService.getActividades().subscribe({
       next: (res: any) => {
-        const actividades = this.extraerArreglo(res);
-        const enCurso = actividades.filter(act => Number(act.id_estado_actividad) === 2);
-        
-        this.actividadesActivas = enCurso.length;
+        const lista = Array.isArray(res) ? res : (res?.data || []);
+        this.totalActividades = lista.length;
+        this.actividadesSlides = lista.slice(0, 5);
+        this.cdRef.detectChanges();
       },
-      error: (err) => console.error('Error al cargar actividades:', err)
+      error: (err: any) => console.error('Error al cargar actividades:', err)
     });
+  }
 
-    // 3. Premios registrados desde ActividadService
+  cargarPremios() {
     this.actividadService.getPremios().subscribe({
       next: (res: any) => {
-        const premios = this.extraerArreglo(res);
-        this.premiosCatalogo = premios.length;
+        const lista = Array.isArray(res) ? res : (res?.data || []);
+        this.totalPremios = lista.length;
+        this.cdRef.detectChanges();
       },
-      error: (err) => console.error('Error al cargar premios:', err)
+      error: (err: any) => console.error('Error al cargar premios:', err)
     });
+  }
 
-    // 4. Canjes pendientes desde ActividadService (id_estado_canje = 1)
-    this.actividadService.getSolicitudesCanje().subscribe({
-      next: (res: any) => {
-        const canjes = this.extraerArreglo(res);
-        const pendientes = canjes.filter(c => Number(c.id_estado_canje) === 1);
-        
-        this.canjesPendientes = pendientes.length;
-        this.solicitudesRecientes = pendientes;
-      },
-      error: (err) => console.error('Error al cargar solicitudes de canje:', err)
-    });
+  cerrarSesion() {
+    localStorage.clear();
+    sessionStorage.clear();
+    this.estaLogueado = false;
+    this.usuarioLogueado = null;
+    this.router.navigate(['/login']);
   }
 }
