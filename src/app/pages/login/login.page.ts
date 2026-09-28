@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController, LoadingController } from '@ionic/angular';
 
-
 import { AlumnoService } from '../../services/alumno'; 
 
 @Component({
@@ -18,7 +17,6 @@ export class LoginPage implements OnInit {
     password: ''
   };
 
-
   mostrarPassword: boolean = false;
 
   constructor(
@@ -30,7 +28,6 @@ export class LoginPage implements OnInit {
 
   ngOnInit() {
   }
-
 
   toggleMostrarPassword() {
     this.mostrarPassword = !this.mostrarPassword;
@@ -52,16 +49,26 @@ export class LoginPage implements OnInit {
       next: (res: any) => {
         loading.dismiss();
         
+        // 1. Guardamos obligatoriamente el RUT y el Token si vienen en la respuesta
+        if (res.usuario && res.usuario.rut_usuario) {
+          localStorage.setItem('rut_usuario', res.usuario.rut_usuario);
+          localStorage.setItem('usuario', JSON.stringify(res.usuario)); // Guardamos el objeto completo
+        }
+        
+        if (res.token_acceso) {
+          localStorage.setItem('token_acceso', res.token_acceso);
+        }
+
+        // 2. Tu llamada normal al servicio
         this.alumnoService.guardarSesion(res.usuario);
+
+        // 3. Redirección
         this.router.navigate(['/home']);
       },
       error: (err: any) => {
         loading.dismiss();
         console.error('Error en el login:', err);
-        this.mostrarAlerta(
-          'Error de Acceso', 
-          'Las credenciales ingresadas no coinciden con nuestros registros.'
-        );
+        this.mostrarAlerta('Error de Acceso', 'Las credenciales ingresadas no coinciden con nuestros registros.');
       }
     });
   }

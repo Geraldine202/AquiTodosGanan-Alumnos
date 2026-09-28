@@ -6,6 +6,14 @@
   <div class="page-title-banner ion-padding">
     <h1><ion-icon name="create-outline" color="primary"></ion-icon> Inscribir Actividad</h1>
     <p>Selecciona una actividad disponible e inscríbete para asegurar tu cupo y acumular puntos.</p>
+    
+    <!-- RESUMEN DE SEDE Y PUNTAJE ACUMULADO (Aprovechando las variables del .ts) -->
+    <div class="user-stats-bar ion-margin-top" *ngIf="nombreSede || puntajeTotal !== undefined">
+      <ion-chip color="primary" outline="true" *ngIf="nombreSede">
+        <ion-icon name="location-outline"></ion-icon>
+        <ion-label>Sede: <strong>{{ nombreSede }}</strong></ion-label>
+      </ion-chip>
+    </div>
   </div>
 
   <!-- INDICADOR DE CARGA -->
@@ -21,7 +29,11 @@
       
       <ion-card class="actividad-card" *ngFor="let act of actividadesDisponibles">
         <div class="card-img-wrapper">
-          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+          <img 
+            [src]="act.img_actv || 'assets/slide1.jpg'" 
+            [alt]="act.nombre_actividad"
+            (error)="$event.target.src = 'assets/slide1.jpg'">
+          
           <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
             +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
           </ion-badge>
@@ -32,29 +44,41 @@
         </ion-card-header>
 
         <ion-card-content>
+          <!-- DESCRIPCIÓN -->
+          <p class="ion-margin-bottom" *ngIf="act.descripcion">{{ act.descripcion }}</p>
+
+          <!-- LUGAR -->
           <p class="info-row" *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
             <ion-icon name="location-outline" color="primary"></ion-icon> 
             <span>{{ act.lugar_actividad[0]?.descripcion }}</span>
           </p>
 
-          <p class="info-row">
+          <!-- FECHA -->
+          <p class="info-row" *ngIf="act.fecha_inicio">
             <ion-icon name="calendar-outline" color="primary"></ion-icon> 
-            <span>{{ act.fecha_inicio || 'Fecha por confirmar' }}</span>
+            <span>{{ act.fecha_inicio | date:'dd/MM/yyyy HH:mm' }}</span>
           </p>
 
-          <p class="info-row" *ngIf="act.cupos">
+          <!-- CUPOS -->
+          <p class="info-row" *ngIf="act.cupo_actividad && act.cupo_actividad[0]">
             <ion-icon name="people-outline" color="primary"></ion-icon> 
-            <span>Cupos disponibles: <strong>{{ act.cupos }}</strong></span>
+            <span>Cupos disponibles: 
+              <strong [class.text-danger]="act.cupo_actividad[0]?.cantidad <= 0">
+                {{ act.cupo_actividad[0]?.cantidad }}
+              </strong>
+            </span>
           </p>
 
+          <!-- BOTÓN DE ACCIÓN -->
           <div class="action-box ion-margin-top">
             <ion-button 
               expand="block" 
-              color="primary" 
-              [disabled]="act.inscrito || procesando"
+              [color]="act.inscrito ? 'success' : 'primary'"
+              [fill]="act.inscrito ? 'outline' : 'solid'"
+              [disabled]="act.inscrito || procesando || (act.cupo_actividad && act.cupo_actividad[0]?.cantidad <= 0)"
               (click)="confirmarInscripcion(act)">
               <ion-icon [name]="act.inscrito ? 'checkmark-circle-outline' : 'add-circle-outline'" slot="start"></ion-icon>
-              {{ act.inscrito ? 'Ya estás inscrito' : 'Inscribirme' }}
+              {{ act.inscrito ? 'Ya estás inscrito' : (act.cupo_actividad && act.cupo_actividad[0]?.cantidad <= 0 ? 'Sin Cupos' : 'Inscribirme') }}
             </ion-button>
           </div>
         </ion-card-content>
@@ -62,11 +86,12 @@
 
     </div>
 
+    <!-- ESTADO VACÍO -->
     <ng-template #sinActividades>
       <div class="empty-state ion-text-center ion-padding">
         <ion-icon name="alert-circle-outline"></ion-icon>
         <h3>No hay actividades disponibles</h3>
-        <p>En este momento no hay nuevas actividades abiertas para inscripción.</p>
+        <p>En este momento no hay nuevas actividades abiertas para inscripción en tu sede.</p>
       </div>
     </ng-template>
 

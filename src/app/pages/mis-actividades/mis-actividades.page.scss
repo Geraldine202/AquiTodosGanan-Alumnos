@@ -137,4 +137,23 @@
       margin: 8px auto 0 auto;
     }
   }
+  .card-footer-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .lugar-txt {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+
+  .btn-desinscribir {
+    --padding-start: 4px;
+    --padding-end: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    height: 30px;
+  }
+}
 }

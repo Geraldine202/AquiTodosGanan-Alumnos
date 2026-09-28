@@ -17,29 +17,24 @@ const routes: Routes = [
     loadChildren: () => import('./pages/login/login.module').then( m => m.LoginPageModule)
   },
   {
-    path: 'admin-actividades',
-    loadChildren: () => import('./pages/admin-actividades/admin-actividades.module').then( m => m.AdminActividadesPageModule),
-    canActivate: [authGuard]
-  },
-  {
     path: 'recuperar',
     loadChildren: () => import('./pages/recuperar/recuperar.module').then( m => m.RecuperarPageModule)
-  },
-  {
-    path: 'admin-premios',
-    loadChildren: () => import('./pages/admin-premios/admin-premios.module').then( m => m.AdminPremiosPageModule),
-    canActivate: [authGuard]
   },
   {
     path: 'perfil',
     loadChildren: () => import('./pages/perfil/perfil.module').then( m => m.PerfilPageModule),
     canActivate: [authGuard]
-  },  {
+  },
+  {
     path: 'mis-actividades',
     loadChildren: () => import('./pages/mis-actividades/mis-actividades.module').then( m => m.MisActividadesPageModule)
   },
   {
     path: 'inscribir-actividad',
+    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule)
+  },
+  {
+    path: 'inscribir-actividad/:id', // <--- ESTA ES LA QUE RECIBE EL ID DE LA ACTIVIDAD
     loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule)
   },
   {

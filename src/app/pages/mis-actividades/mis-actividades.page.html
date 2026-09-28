@@ -4,7 +4,10 @@
 
   <!-- CABECERA DE LA PÁGINA -->
   <div class="page-title-banner ion-padding">
-    <h1><ion-icon name="calendar-outline" color="primary"></ion-icon> Mis Actividades</h1>
+    <h1>
+      <ion-icon name="calendar-outline" color="primary"></ion-icon> 
+      Mis Actividades
+    </h1>
     <p>Revisa tus inscripciones actuales y el historial de eventos en los que has participado.</p>
   </div>
 
@@ -29,7 +32,7 @@
   <!-- CONTENIDO: VISTA DE PRÓXIMAS ACTIVIDADES -->
   <div *ngIf="!cargando && segmentoSeleccionado === 'proximas'" class="ion-padding-horizontal margin-top-section">
     <div *ngIf="actividadesProximas.length > 0; else noProximas">
-      <ion-card class="actividad-card" *ngFor="let act of actividadesProximas" [routerLink]="['/detalle-actividad', act.id_actividad]">
+      <ion-card class="actividad-card" *ngFor="let act of actividadesProximas" (click)="verDetalle(act.id_actividad)">
         <div class="card-img-wrapper">
           <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
           <ion-badge color="success" class="status-badge">Confirmado</ion-badge>
@@ -37,21 +40,43 @@
 
         <ion-card-header>
           <div class="card-top-info">
-            <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
-              +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
+            <ion-badge color="warning" class="pts-badge">
+              +{{ act.puntos }} Pts
             </ion-badge>
+            <!-- FECHA Y HORA ACTUALIZADAS SEGÚN LA NUEVA BD -->
             <span class="fecha-txt">
-              <ion-icon name="time-outline"></ion-icon> {{ act.fecha_inicio || 'Por definir' }}
+              <ion-icon name="time-outline"></ion-icon> 
+              {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Por definir' }} {{ act.hora_inicio ? '(' + act.hora_inicio.slice(0,5) + ' hrs)' : '' }}
             </span>
           </div>
           <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
         </ion-card-header>
 
-        <ion-card-content>
-          <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
-            <ion-icon name="location-outline" color="primary"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
-          </p>
-        </ion-card-content>
+      <ion-card-content class="card-footer-content">
+        <p class="lugar-txt">
+          <ion-icon name="location-outline" color="primary"></ion-icon> 
+          {{ act.lugar }}
+        </p>
+
+        <!-- CASO 1: Si ya se confirmó la asistencia, mostramos la insignia verde -->
+        <ion-badge color="success" mode="ios" *ngIf="act.presente; else btnCancelar">
+          <ion-icon name="checkmark-done-circle-outline"></ion-icon> 
+          Estás inscrito (Asistencia Confirmada)
+        </ion-badge>
+
+        <!-- CASO 2: Si NO ha registrado asistencia, se muestra el botón para salir/cancelar -->
+        <ng-template #btnCancelar>
+          <ion-button 
+            fill="clear" 
+            color="danger" 
+            size="small" 
+            class="btn-desinscribir"
+            (click)="salirDeActividad($event, act.id_actividad)">
+            <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+            Cancelar Inscripción
+          </ion-button>
+        </ng-template>
+      </ion-card-content>
       </ion-card>
     </div>
 
@@ -60,7 +85,7 @@
         <ion-icon name="calendar-clear-outline"></ion-icon>
         <h3>No tienes actividades inscritas</h3>
         <p>Explora el catálogo de actividades y participa para sumar puntos.</p>
-        <ion-button color="primary" [routerLink]="['/actividades']" class="ion-margin-top">
+        <ion-button color="primary" [routerLink]="['/inscribir-actividad']" class="ion-margin-top">
           Ver Actividades
         </ion-button>
       </div>
@@ -70,7 +95,7 @@
   <!-- CONTENIDO: VISTA DE HISTORIAL -->
   <div *ngIf="!cargando && segmentoSeleccionado === 'historial'" class="ion-padding-horizontal margin-top-section">
     <div *ngIf="actividadesHistorial.length > 0; else noHistorial">
-      <ion-card class="actividad-card historial-card" *ngFor="let act of actividadesHistorial" [routerLink]="['/detalle-actividad', act.id_actividad]">
+      <ion-card class="actividad-card historial-card" *ngFor="let act of actividadesHistorial" (click)="verDetalle(act.id_actividad)">
         <div class="card-img-wrapper">
           <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
           <ion-badge color="medium" class="status-badge">Finalizada</ion-badge>
@@ -78,19 +103,22 @@
 
         <ion-card-header>
           <div class="card-top-info">
-            <ion-badge color="tertiary" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
-              +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts Ganados
+            <ion-badge color="success" class="pts-badge">
+              +{{ act.puntos }} Pts Ganados
             </ion-badge>
+            <!-- FECHA ACTUALIZADA SEGÚN LA NUEVA BD -->
             <span class="fecha-txt">
-              <ion-icon name="checkmark-done-outline"></ion-icon> {{ act.fecha_fin || 'Realizada' }}
+              <ion-icon name="checkmark-done-outline" color="success"></ion-icon> 
+              {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Realizada' }}
             </span>
           </div>
           <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
-          <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
-            <ion-icon name="location-outline" color="medium"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
+          <p class="lugar-txt">
+            <ion-icon name="location-outline" color="medium"></ion-icon> 
+            {{ act.lugar }}
           </p>
         </ion-card-content>
       </ion-card>

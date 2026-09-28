@@ -12,41 +12,83 @@ export interface ConteoActividades {
   total_actividades: number;
 }
 
-/** Payload necesario para Crear o Actualizar una Actividad */
+
+/** Payload que el Frontend debe enviar para crear una Actividad según el esquema SQL */
 export interface ActividadPayload {
   nombre_actividad: string;
   descripcion: string;
   responsable_actividad: string;
-  rut_usuario: string;
   id_tipo_actividad: number;
-  id_estado_actividad?: number; // Opcional (FastAPI asigna 1 por defecto al crear)
+  id_estado_actividad?: number;
   id_sede: number;
-  fecha_inicio: string;  // Formato ISO string (ej: "2026-05-10T14:30:00")
-  fecha_termino: string; // Formato ISO string
-  puntos: number;
-  cupos: number;
-  lugar: string;
-  requisito?: string;
-  img_actv?: string;     // URL pública devuelta por el backend
+  rut_usuario: string; // Rut del creador/responsable
+  img_actv?: string;
+  fecha: string;        // Formato "YYYY-MM-DD"
+  hora_inicio: string;  // Formato "HH:MM:SS"
+  hora_termino: string; // Formato "HH:MM:SS"
+  
+  // Tablas hijas opcionales si el backend las procesa en el mismo endpoint:
+  puntos?: number;     // -> inserta en puntaje_act (cantidad)
+  cupos?: number;      // -> inserta en cupo_actividad (cantidad)
+  lugar?: string;      // -> inserta en lugar_actividad (descripcion)
+  requisito?: string;  // -> inserta en requisito_participacion (descripcion)
 }
 
+/** Payload para inscribir a un alumno en una actividad */
+export interface InscripcionCreate {
+  rut_alumno: string; 
+  id_actividad: number;
+}
+
+/** Respuesta de la API tras una inscripción */
+export interface InscripcionRespuesta {
+  mensaje: string;
+  cupos_restantes?: number;
+  inscripcion: {
+    id_inscripcion: number;
+    rut_usuario: string;
+    id_actividad: number;
+    puntos_ganados: number;
+    fecha_inscripcion: string;
+    fecha_termino: string;
+  };
+}
+
+/** Estructura detallada de un registro de inscripción con actividad y tablas hijas anidadas */
+export interface InscripcionDetalle {
+  id_inscripcion: number;
+  rut_usuario: string;
+  id_actividad: number;
+  puntos_ganados: number;
+  fecha_inscripcion: string;
+  fecha_termino: string;
+  actividad?: ActividadCompleta;
+}
+
+
 /** Respuesta completa de Actividad enviada por la API (con relaciones) */
+/** Respuesta de Actividad enviada por la API alineada a las tablas SQL */
 export interface ActividadCompleta {
   id_actividad: number;
   nombre_actividad: string;
   descripcion: string;
   responsable_actividad: string;
-  fecha_inicio: string;
-  fecha_termino: string;
   id_tipo_actividad: number;
   id_estado_actividad: number;
   id_sede: number;
   rut_usuario: string;
   img_actv?: string;
-  tipo_actividad?: { descripcion: string };
-  estado_actividad?: { descripcion: string };
-  sede?: { descripcion: string };
+  fecha: string;
+  hora_inicio: string;
+  hora_termino: string;
+  
+  // Relaciones
+  tipo_actividad?: { id_tipo_actividad: number; descripcion: string };
+  estado_actividad?: { id_estado_actividad: number; descripcion: string };
+  sede?: { id_sede: number; descripcion: string };
   usuario?: { nombre_completo: string; correo: string };
+  
+  // Tablas Hijas (Arrays)
   puntaje_act?: Array<{ id_puntaje: number; cantidad: number; fecha_vencimiento: string }>;
   cupo_actividad?: Array<{ id_cupo: number; cantidad: number }>;
   lugar_actividad?: Array<{ id_lugar_actividad: number; descripcion: string }>;
@@ -55,7 +97,7 @@ export interface ActividadCompleta {
 }
 
 // ==========================================
-// INTERFACES Y MODELOS (PREMIOS)
+// INTERFACES Y MODELOS (PREMIOS Y CANJES)
 // ==========================================
 
 /** Payload necesario para Crear o Actualizar un Premio */
@@ -86,6 +128,27 @@ export interface PremioCompleto {
   sede?: { id_sede?: number; descripcion: string };
   usuario?: { nombre_completo: string; correo: string };
   stock_sede?: Array<{ id_stock: number; cantidad: number; id_sede: number }>;
+}
+
+/** Payload necesario para solicitar un Canje de Premio */
+export interface SolicitudCanjePayload {
+  rut_usuario: string;
+  id_premio: number;
+  id_sede: number;
+  cantidad?: number;
+}
+
+/** Respuesta de una Solicitud de Canje */
+export interface SolicitudCanje {
+  id_solicitud?: number;
+  id_canje?: number;
+  rut_usuario: string;
+  id_premio: number;
+  id_sede: number;
+  fecha_solicitud?: string;
+  estado?: string;
+  premio?: PremioCompleto;
+  usuario?: { nombre_completo: string; correo: string };
 }
 
 // ==========================================
@@ -121,14 +184,19 @@ export interface Consejero {
   correo: string;
   id_tipo_usuario?: number;
 }
-
+/** Interfaz para el resumen de puntaje total del alumno */
+export interface PuntajeTotalResponse {
+  id_puntaje?: number;
+  rut_usuario: string;
+  puntaje: number;
+  vigencia?: string;
+}
 
 @Injectable({
   providedIn: 'root',
 })
 export class ActividadService {
 
-  // URL base de tu backend FastAPI (se recomienda mover a environment.ts)
   private apiUrl: string = 'http://localhost:8000';
 
   private httpOptions = {
@@ -143,10 +211,6 @@ export class ActividadService {
   // ARCHIVOS / ALMACENAMIENTO DE IMÁGENES
   // ==========================================
 
-  /**
-   * Sube una imagen al backend (FastAPI) especificando el bucket ('actividad' o 'premio').
-   * Retorna la URL pública generada.
-   */
   subirImagen(
     file: File, 
     bucket: 'actividad' | 'premio' | 'premios' | string = 'actividad'
@@ -165,111 +229,156 @@ export class ActividadService {
   // CATÁLOGOS COMPARTIDOS
   // ==========================================
 
-  /** Obtiene docentes responsables (Docentes y Roles Administradores) */
   getDocentes(): Observable<Docente[]> {
     return this.http.get<Docente[]>(`${this.apiUrl}/docentes`);
   }
-  /** Obtiene la información del usuario y su puntaje total usando su RUT o Token */
+
+
   getUsuarioSesion(rutOToken: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/usuario/sesion/${rutOToken}`);
   }
+  getPuntajeTotal(rutOToken: string) {
+    return this.http.get<any>(`${this.apiUrl}/puntaje-total/${rutOToken}`);
+  }
 
-  /** Obtiene específicamente los Consejeros de Carrera */
   getConsejeros(): Observable<Consejero[]> {
     return this.http.get<Consejero[]>(`${this.apiUrl}/consejeros`);
   }
 
-  /** Obtiene tipos de actividad (ej: Deportiva, Académica, etc.) */
   getTiposActividad(): Observable<CatalogoItem[]> {
     return this.http.get<CatalogoItem[]>(`${this.apiUrl}/tipos-actividad`);
   }
 
-  /** Obtiene estados de la actividad (ej: Programada, Finalizada) */
   getEstadosActividad(): Observable<CatalogoItem[]> {
     return this.http.get<CatalogoItem[]>(`${this.apiUrl}/estados-actividad`);
   }
 
-  /** Obtiene las categorías de premios */
   getCategoriasPremio(): Observable<CategoriaPremio[]> {
     return this.http.get<CategoriaPremio[]>(`${this.apiUrl}/categorias-premio`);
   }
 
-  /** Obtiene las sedes disponibles */
   getSedes(): Observable<CatalogoItem[]> {
     return this.http.get<CatalogoItem[]>(`${this.apiUrl}/sedes`);
   }
 
   // ==========================================
-  // CRUD DE ACTIVIDADES
+  // CRUD Y GESTIÓN DE ACTIVIDADES
   // ==========================================
 
-  /** Obtiene el listado completo de actividades con sus datos anidados */
   getActividades(): Observable<ActividadCompleta[]> {
     return this.http.get<ActividadCompleta[]>(`${this.apiUrl}/actividades`);
   }
 
-  /** Obtiene únicamente la cantidad total de actividades asociadas a un RUT de usuario */
   getConteoActividadesPorUsuario(rutUsuario: string): Observable<ConteoActividades> {
     return this.http.get<ConteoActividades>(`${this.apiUrl}/actividades/conteo/usuario/${rutUsuario}`);
   }
 
-  /** Obtiene las actividades creadas por un usuario en específico mediante su RUT */
   getActividadesPorUsuario(rutUsuario: string): Observable<ActividadCompleta[]> {
     return this.http.get<ActividadCompleta[]>(`${this.apiUrl}/actividades/usuario/${rutUsuario}`);
   }
-
-  /** Obtiene una actividad específica según su ID */
+  getActividadesPorSede(rutOToken: string) {
+    return this.http.get<any>(`${this.apiUrl}/actividades/disponibles/${rutOToken}`);
+  }
   getActividadPorId(id: number): Observable<ActividadCompleta> {
     return this.http.get<ActividadCompleta>(`${this.apiUrl}/actividades/${id}`);
   }
 
-  /** Registra una nueva actividad */
   crearActividad(actividad: ActividadPayload): Observable<ActividadCompleta> {
     return this.http.post<ActividadCompleta>(`${this.apiUrl}/actividades`, actividad, this.httpOptions);
   }
 
-  /** Actualiza una actividad existente */
   actualizarActividad(id: number, actividad: Partial<ActividadPayload>): Observable<ActividadCompleta> {
     return this.http.put<ActividadCompleta>(`${this.apiUrl}/actividades/${id}`, actividad, this.httpOptions);
   }
 
-  /** Elimina una actividad y limpia sus dependencias */
   eliminarActividad(id: number): Observable<{ mensaje: string }> {
     return this.http.delete<{ mensaje: string }>(`${this.apiUrl}/actividades/${id}`);
+  }
+
+  // ==========================================
+  // INSCRIPCIONES A ACTIVIDADES
+  // ==========================================
+
+  /**
+   * Inscribe a un alumno en una actividad (Valida matrícula, previene duplicados y descuenta cupo)
+   */
+  inscribirAlumno(payload: InscripcionCreate): Observable<InscripcionRespuesta> {
+    return this.http.post<InscripcionRespuesta>(`${this.apiUrl}/inscripciones`, payload, this.httpOptions);
+  }
+  cancelarInscripcion(rutAlumno: string, idActividad: number) {
+  return this.http.delete(`${this.apiUrl}/inscripciones`, {
+    params: {
+      rut_alumno: rutAlumno,
+      id_actividad: idActividad.toString()
+    }
+  });
+}
+
+  /**
+   * Marca la actividad de un alumno como COMPLETADA y le acredita el puntaje en 'puntaje_total'
+   */
+  completarActividad(rutAlumno: string, idActividad: number): Observable<{ mensaje: string; puntos_sumados: number }> {
+    return this.http.put<{ mensaje: string; puntos_sumados: number }>(
+      `${this.apiUrl}/inscripciones/completar?rut_alumno=${rutAlumno}&id_actividad=${idActividad}`,
+      {},
+      this.httpOptions
+    );
+  }
+
+  /**
+   * Obtiene la lista de inscripciones/actividades cursadas por un alumno mediante su RUT o Token
+   */
+getInscripcionesPorAlumno(rutOToken: string): Observable<InscripcionDetalle[]> {
+  // Limpia los puntos antes de realizar el GET para evitar fallos de formateo en FastAPI
+  const rutFormateado = rutOToken.replace(/\./g, '');
+  return this.http.get<InscripcionDetalle[]>(
+    `${this.apiUrl}/inscripciones/alumno/${encodeURIComponent(rutFormateado)}`
+  );
+}
+  /**
+   * Alias de compatibilidad para consultar inscripciones
+   */
+  obtenerInscripcionesPorUsuario(rutOToken: string): Observable<InscripcionDetalle[]> {
+    return this.getInscripcionesPorAlumno(rutOToken);
   }
 
   // ==========================================
   // CRUD DE PREMIOS Y CANJES
   // ==========================================
 
-  /** Obtiene el listado completo de premios con sus datos anidados */
   getPremios(): Observable<PremioCompleto[]> {
     return this.http.get<PremioCompleto[]>(`${this.apiUrl}/premios`);
   }
 
-  /** Obtiene el listado de solicitudes de canje */
-  getSolicitudesCanje(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/solicitudes-canje`);
-  }
-
-  /** Obtiene un premio específico según su ID */
   getPremioPorId(id: number): Observable<PremioCompleto> {
     return this.http.get<PremioCompleto>(`${this.apiUrl}/premios/${id}`);
   }
 
-  /** Registra un nuevo premio y su stock inicial en la sede correspondiente */
   crearPremio(premio: PremioPayload): Observable<PremioCompleto> {
     return this.http.post<PremioCompleto>(`${this.apiUrl}/premios`, premio, this.httpOptions);
   }
 
-  /** Actualiza un premio existente y/o su stock */
   actualizarPremio(id: number, premio: Partial<PremioPayload>): Observable<PremioCompleto> {
     return this.http.put<PremioCompleto>(`${this.apiUrl}/premios/${id}`, premio, this.httpOptions);
   }
 
-  /** Elimina un premio, su registro de stock e imagen asociada */
   eliminarPremio(id: number): Observable<{ mensaje: string }> {
     return this.http.delete<{ mensaje: string }>(`${this.apiUrl}/premios/${id}`);
   }
-  
+
+  getSolicitudesCanje(): Observable<SolicitudCanje[]> {
+    return this.http.get<SolicitudCanje[]>(`${this.apiUrl}/solicitudes-canje`);
+  }
+
+  crearSolicitudCanje(solicitud: SolicitudCanjePayload): Observable<SolicitudCanje> {
+    return this.http.post<SolicitudCanje>(`${this.apiUrl}/solicitudes-canje`, solicitud, this.httpOptions);
+  }
+
+  actualizarEstadoCanje(idCanje: number, estado: string): Observable<SolicitudCanje> {
+    return this.http.put<SolicitudCanje>(
+      `${this.apiUrl}/solicitudes-canje/${idCanje}`, 
+      { estado }, 
+      this.httpOptions
+    );
+  }
 }
