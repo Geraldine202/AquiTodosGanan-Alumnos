@@ -26,10 +26,12 @@ export class MisActividadesPage implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.segmentoSeleccionado = 'proximas';
     this.cargarMisActividades();
   }
 
   ionViewWillEnter() {
+    this.segmentoSeleccionado = 'proximas';
     this.cargarMisActividades();
   }
 cargarMisActividades() {

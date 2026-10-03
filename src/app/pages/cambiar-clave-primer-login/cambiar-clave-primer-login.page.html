@@ -1,0 +1,73 @@
+<app-header></app-header>
+
+<ion-content class="custom-content ion-padding">
+  <div class="main-wrapper">
+    
+    <!-- Encabezado superior fuera de la tarjeta -->
+    <div class="header-container ion-text-center">
+      <div class="icon-circle">
+        <ion-icon name="lock-closed-outline" class="lock-icon"></ion-icon>
+      </div>
+      <h2 class="title-main">Cambia tu Contraseña</h2>
+      <div class="linea-decorativa"></div>
+      <p class="subtitle-text">
+        Por seguridad, debes configurar una contraseña personal para tu primer inicio de sesión.
+      </p>
+    </div>
+    <br>
+    <br>
+    <br>
+    <br>
+
+    <!-- Tarjeta del Formulario -->
+    <ion-card class="form-card">
+      <ion-card-content>
+
+        <!-- Campo 1: Nueva Contraseña -->
+        <div class="custom-input-group">
+          <ion-label class="custom-label">Nueva Contraseña</ion-label>
+          <div class="input-box">
+            <ion-icon name="key-outline" class="input-icon"></ion-icon>
+            <ion-input 
+              [type]="mostrarNuevaClave ? 'text' : 'password'" 
+              [(ngModel)]="datosClave.nuevaPassword" 
+              placeholder="Ingresa tu nueva contraseña">
+            </ion-input>
+            <ion-button fill="clear" class="btn-eye" (click)="toggleNuevaClave()">
+              <ion-icon slot="icon-only" [name]="mostrarNuevaClave ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </ion-button>
+          </div>
+        </div>
+
+        <!-- Campo 2: Confirmar Nueva Contraseña -->
+        <div class="custom-input-group ion-margin-top">
+          <ion-label class="custom-label">Confirmar Nueva Contraseña</ion-label>
+          <div class="input-box">
+            <ion-icon name="checkmark-circle-outline" class="input-icon"></ion-icon>
+            <ion-input 
+              [type]="mostrarConfirmarClave ? 'text' : 'password'" 
+              [(ngModel)]="datosClave.confirmarPassword" 
+              placeholder="Repite la nueva contraseña">
+            </ion-input>
+            <ion-button fill="clear" class="btn-eye" (click)="toggleConfirmarClave()">
+              <ion-icon slot="icon-only" [name]="mostrarConfirmarClave ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </ion-button>
+          </div>
+        </div>
+
+        <!-- Botón de Guardar -->
+        <ion-button 
+          expand="block" 
+          shape="round" 
+          class="submit-btn" 
+          (click)="guardarNuevaClave()">
+          GUARDAR Y CONTINUAR
+          <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+        </ion-button>
+
+      </ion-card-content>
+    </ion-card>
+
+  </div>
+   <app-footer></app-footer>
+</ion-content>

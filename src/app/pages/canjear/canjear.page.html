@@ -11,19 +11,22 @@
         <h2>{{ misPuntos }}</h2>
         <span>pts</span>
       </div>
-      <p class="subtext">Elige un premio e inicie la solicitud de canje</p>
+      <p class="subtext">Elige un premio e envía tu solicitud de canje</p>
     </div>
   </div>
 
-  <!-- TITULO SECCIÓN -->
+  <!-- TÍTULO SECCIÓN -->
   <div class="section-title ion-padding-horizontal margin-top-section">
-    <h2><ion-icon name="gift-outline" color="primary"></ion-icon> Premios Disponibles</h2>
+    <h2>
+      <ion-icon name="gift-outline" color="primary"></ion-icon> 
+      Premios Disponibles
+    </h2>
   </div>
 
-  <!-- INDICADOR DE CARGA -->
+  <!-- INDICADOR DE CARGA GENERAL -->
   <div *ngIf="cargando" class="ion-text-center ion-padding my-4">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
-    <p class="text-muted">Cargando premios del catálogo...</p>
+    <p class="text-muted">Cargando catálogo de recompensas...</p>
   </div>
 
   <!-- CATÁLOGO DE PREMIOS -->
@@ -43,31 +46,47 @@
         </ion-card-header>
 
         <ion-card-content>
-          <p class="descripcion">{{ premio.descripcion || 'Sin descripción disponible' }}</p>
+          <p class="descripcion">{{ premio.descripcion }}</p>
 
-          <p class="stock-info">
+          <p class="stock-info" [ngClass]="{'out-of-stock': premio.stock <= 0}">
             <ion-icon name="cube-outline"></ion-icon>
-            <span>Stock disponible: <strong>{{ premio.stock || 0 }}</strong></span>
+            <span *ngIf="premio.stock > 0">
+              Stock disponible: <strong>{{ premio.stock }}</strong>
+            </span>
+            <span *ngIf="premio.stock <= 0" class="text-danger">
+              <strong>Agotado en tu sede</strong>
+            </span>
           </p>
 
           <div class="action-box ion-margin-top">
             <ion-button 
               expand="block" 
-              [color]="misPuntos >= premio.costo_puntos ? 'success' : 'medium'"
+              [color]="premio.stock <= 0 ? 'medium' : (misPuntos >= premio.costo_puntos ? 'success' : 'medium')"
               [disabled]="misPuntos < premio.costo_puntos || premio.stock <= 0 || procesando"
               (click)="confirmarCanje(premio)">
-              <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
-              {{ misPuntos >= premio.costo_puntos ? 'Canjear Premio' : 'Puntos Insuficientes' }}
+              
+              <ion-spinner *ngIf="procesando" name="crescent" slot="start"></ion-spinner>
+              <ion-icon *ngIf="!procesando" name="paper-plane-outline" slot="start"></ion-icon>
+              
+              <span *ngIf="!procesando">
+                {{ 
+                  premio.stock <= 0 
+                    ? 'Agotado' 
+                    : (misPuntos >= premio.costo_puntos ? 'Solicitar Canje' : 'Puntos Insuficientes') 
+                }}
+              </span>
+              <span *ngIf="procesando">Enviando solicitud...</span>
             </ion-button>
           </div>
         </ion-card-content>
       </ion-card>
     </div>
 
+    <!-- ESTADO VACÍO CUANDO NO HAY PREMIOS -->
     <ng-template #sinPremios>
       <div class="empty-state ion-text-center ion-padding">
-        <ion-icon name="gift-outline"></ion-icon>
-        <h3>No hay premios en catálogo</h3>
+        <ion-icon name="gift-outline" style="font-size: 64px; color: var(--ion-color-medium);"></ion-icon>
+        <h3>No hay premios en el catálogo</h3>
         <p>Vuelve más tarde para consultar las nuevas recompensas disponibles.</p>
       </div>
     </ng-template>

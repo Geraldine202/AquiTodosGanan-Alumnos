@@ -131,12 +131,6 @@ export interface PremioCompleto {
 }
 
 /** Payload necesario para solicitar un Canje de Premio */
-export interface SolicitudCanjePayload {
-  rut_usuario: string;
-  id_premio: number;
-  id_sede: number;
-  cantidad?: number;
-}
 
 /** Respuesta de una Solicitud de Canje */
 export interface SolicitudCanje {
@@ -190,6 +184,20 @@ export interface PuntajeTotalResponse {
   rut_usuario: string;
   puntaje: number;
   vigencia?: string;
+}
+export interface SolicitudCanjePayload {
+  rut_alumno?: string;
+  rut_usuario?: string;
+  id_premio: number;
+  id_sede?: number;
+  lugar_entrega?: string;
+}
+
+/** Respuesta enviada por el endpoint POST /premios/canjear */
+export interface SolicitudCanjeRespuesta {
+  mensaje: string;
+  saldo_restante: number;
+  id_canje: number;
 }
 
 @Injectable({
@@ -378,6 +386,13 @@ getInscripcionesPorAlumno(rutOToken: string): Observable<InscripcionDetalle[]> {
     return this.http.put<SolicitudCanje>(
       `${this.apiUrl}/solicitudes-canje/${idCanje}`, 
       { estado }, 
+      this.httpOptions
+    );
+  }
+  canjearPremio(payload: SolicitudCanjePayload): Observable<SolicitudCanjeRespuesta> {
+    return this.http.post<SolicitudCanjeRespuesta>(
+      `${this.apiUrl}/premios/canjear`,
+      payload,
       this.httpOptions
     );
   }

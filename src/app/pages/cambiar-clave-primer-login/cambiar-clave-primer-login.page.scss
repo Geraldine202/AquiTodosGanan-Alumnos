@@ -1,0 +1,184 @@
+// ==========================================
+// PALETA DE COLORES "AQUÍ TODOS GANAN"
+// ==========================================
+$bg-dark: #031326;
+$bg-card: #071a30;
+$input-bg: #010a14;
+$gold-primary: #f5b800;
+$gold-hover: #d9a300;
+$text-light: #ffffff;
+$text-muted: #94a3b8;
+
+.custom-toolbar {
+  --background: #{$bg-dark};
+  --color: #{$text-light};
+  border-bottom: 1px solid rgba(245, 184, 0, 0.2);
+
+  ion-title {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.8px;
+    color: $text-light;
+    text-transform: uppercase;
+  }
+}
+
+.custom-content {
+  --background: #{$bg-dark};
+  --padding-top: 20px;
+  --padding-bottom: 20px;
+}
+
+.main-wrapper {
+  max-width: 460px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 80vh;
+}
+
+// ==========================================
+// ENCABEZADO SUPERIOR
+// ==========================================
+.header-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(245, 184, 0, 0.1);
+    border: 2px solid $gold-primary;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    box-shadow: 0 0 15px rgba(245, 184, 0, 0.2);
+
+    .lock-icon {
+      font-size: 28px;
+      color: $gold-primary;
+    }
+  }
+
+  .title-main {
+    color: $text-light;
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .linea-decorativa {
+    width: 50px;
+    height: 3px;
+    background-color: $gold-primary;
+    border-radius: 2px;
+    margin: 6px 0 12px 0;
+  }
+
+  .subtitle-text {
+    color: $text-muted;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    max-width: 320px;
+    margin: 0;
+  }
+}
+
+// ==========================================
+// TARJETA Y FORMULARIO
+// ==========================================
+.form-card {
+  background: $bg-card;
+  border-radius: 18px;
+  border: 1px solid rgba(245, 184, 0, 0.25);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  margin: 0;
+  padding: 8px 4px;
+
+  ion-card-content {
+    padding: 20px 16px;
+  }
+}
+
+// Custom Input Container (Evita el solapamiento)
+.custom-input-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+
+  .custom-label {
+    color: $gold-primary;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  .input-box {
+    display: flex;
+    align-items: center;
+    background: $input-bg;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 2px 8px 2px 14px;
+    transition: all 0.2s ease-in-out;
+
+    &:focus-within {
+      border-color: $gold-primary;
+      box-shadow: 0 0 8px rgba(245, 184, 0, 0.3);
+    }
+
+    .input-icon {
+      color: $gold-primary;
+      font-size: 20px;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
+    ion-input {
+      --color: #{$text-light};
+      --placeholder-color: #64748b;
+      --placeholder-opacity: 1;
+      --padding-start: 0;
+      --padding-end: 0;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+
+    .btn-eye {
+      --color: #{$gold-primary};
+      --padding-start: 4px;
+      --padding-end: 4px;
+      margin: 0;
+      height: 36px;
+
+      ion-icon {
+        font-size: 20px;
+      }
+    }
+  }
+}
+
+// Botón Principal
+.submit-btn {
+  --background: #{$gold-primary};
+  --background-hover: #{$gold-hover};
+  --background-activated: #{$gold-hover};
+  --color: #000000;
+  font-weight: 800;
+  font-size: 0.95rem;
+  height: 50px;
+  letter-spacing: 0.6px;
+  box-shadow: 0 4px 18px rgba(245, 184, 0, 0.35);
+  margin-top: 28px;
+
+  ion-icon {
+    font-size: 18px;
+  }
+}

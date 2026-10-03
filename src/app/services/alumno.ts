@@ -243,6 +243,12 @@
       localStorage.removeItem('tokenAcceso');
       this.usuarioSubject.next(null);
     }
+    cambiarPasswordObligatorio(rutUsuario: string, nuevaPassword: string) {
+  return this.http.put(`${this.baseUrl}/auth/cambiar-password-obligatorio`, {
+    rut_usuario: rutUsuario,
+    nueva_password: nuevaPassword
+  });
+}
 
     cerrarSesion() {
       this.logout().subscribe();

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { AlertController, LoadingController } from '@ionic/angular';
+import { AlertController, LoadingController, NavController } from '@ionic/angular';
 
 import { AlumnoService } from '../../services/alumno'; 
 
@@ -23,7 +23,8 @@ export class LoginPage implements OnInit {
     private alumnoService: AlumnoService,
     private router: Router,
     private alertController: AlertController,
-    private loadingController: LoadingController
+    private loadingController: LoadingController,
+    private navCtrl: NavController
   ) { }
 
   ngOnInit() {
@@ -45,32 +46,36 @@ export class LoginPage implements OnInit {
     });
     await loading.present();
 
-    this.alumnoService.login(this.credenciales).subscribe({
-      next: (res: any) => {
-        loading.dismiss();
-        
-        // 1. Guardamos obligatoriamente el RUT y el Token si vienen en la respuesta
-        if (res.usuario && res.usuario.rut_usuario) {
-          localStorage.setItem('rut_usuario', res.usuario.rut_usuario);
-          localStorage.setItem('usuario', JSON.stringify(res.usuario)); // Guardamos el objeto completo
-        }
-        
-        if (res.token_acceso) {
-          localStorage.setItem('token_acceso', res.token_acceso);
-        }
+  this.alumnoService.login(this.credenciales).subscribe({
+  next: (res: any) => {
+    loading.dismiss();
+    
+    if (res.usuario && res.usuario.rut_usuario) {
+      localStorage.setItem('rut_usuario', res.usuario.rut_usuario);
+      localStorage.setItem('usuario', JSON.stringify(res.usuario));
+    }
+    
+    if (res.token_acceso) {
+      localStorage.setItem('token_acceso', res.token_acceso);
+    }
 
-        // 2. Tu llamada normal al servicio
-        this.alumnoService.guardarSesion(res.usuario);
+    this.alumnoService.guardarSesion(res.usuario);
 
-        // 3. Redirección
-        this.router.navigate(['/home']);
-      },
-      error: (err: any) => {
-        loading.dismiss();
-        console.error('Error en el login:', err);
-        this.mostrarAlerta('Error de Acceso', 'Las credenciales ingresadas no coinciden con nuestros registros.');
-      }
-    });
+    // VERIFICAR SI DEBE CAMBIAR SU CONTRASEÑA POR PRIMERA VEZ
+    if (res.usuario.cambio_clave_obligatorio) {
+      // Redirigir a la página donde cambiará la clave
+      this.navCtrl.navigateRoot('/cambiar-clave-primer-login');
+    } else {
+      // Flujo normal hacia Home
+      this.navCtrl.navigateRoot('/home');
+    }
+  },
+  error: (err: any) => {
+    loading.dismiss();
+    const mensajeError = err.error?.error || 'Las credenciales ingresadas no coinciden.';
+    this.mostrarAlerta('Error de Acceso', mensajeError);
+  }
+});
   }
 
   async mostrarAlerta(header: string, message: string) {

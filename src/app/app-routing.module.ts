@@ -44,7 +44,11 @@ const routes: Routes = [
   {
     path: 'mis-premios',
     loadChildren: () => import('./pages/mis-premios/mis-premios.module').then( m => m.MisPremiosPageModule)
+  },  {
+    path: 'cambiar-clave-primer-login',
+    loadChildren: () => import('./pages/cambiar-clave-primer-login/cambiar-clave-primer-login.module').then( m => m.CambiarClavePrimerLoginPageModule)
   }
+
 
 
 
