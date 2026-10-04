@@ -10,15 +10,21 @@
 
   <!-- FILTROS POR ESTADO -->
   <div class="filter-segment-container ion-padding-horizontal">
-    <ion-segment [(ngModel)]="filtroEstado" (ionChange)="filtrarCanjes()" mode="ios">
+    <ion-segment [(ngModel)]="filtroEstado" (ionChange)="filtrarCanjes()" mode="ios" scrollable="true">
       <ion-segment-button value="TODOS">
         <ion-label>Todos</ion-label>
       </ion-segment-button>
-      <ion-segment-button value="PENDIENTE">
-        <ion-label>Pendientes</ion-label>
+      <ion-segment-button value="SOLICITADO">
+        <ion-label>Solicitados</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="APROBADO">
+        <ion-label>Aprobados</ion-label>
       </ion-segment-button>
       <ion-segment-button value="RETIRADO">
         <ion-label>Retirados</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="CANCELADO">
+        <ion-label>Cancelados</ion-label>
       </ion-segment-button>
     </ion-segment>
   </div>
@@ -40,7 +46,8 @@
           <span class="fecha-solicitud">
             <ion-icon name="calendar-outline"></ion-icon> {{ item.fecha_solicitud | date:'dd/MM/yyyy HH:mm' }}
           </span>
-          <ion-badge [color]="obtenerBadgeColor(item.estado_canje?.descripcion || item.estado)">
+          <!-- BADGE CON EL ESTADO REAL -->
+          <ion-badge [color]="obtenerBadgeColor(item.id_estado_canje, item.estado_canje?.descripcion || item.estado)">
             {{ item.estado_canje?.descripcion || item.estado || 'Solicitado' }}
           </ion-badge>
         </div>
@@ -52,44 +59,52 @@
               <h3>{{ item.premio?.descripcion || 'Premio Canjeado' }}</h3>
               <p class="puntos">
                 <ion-icon name="star" color="warning"></ion-icon> 
-                <strong>{{ item.costo_puntaje }}</strong> Puntos utilzados
+                <strong>{{ item.costo_puntaje }}</strong> Puntos utilizados
               </p>
             </div>
           </div>
 
-          <!-- INFORMACIÓN DE RETIRO (Detalle Canje / Retiro Premio) -->
-          <div class="info-box" *ngIf="item.detalle_canje || item.retiro_premio">
-            <div class="info-row" *ngIf="item.detalle_canje?.lugar_entrega">
+          <!-- CAJA DE DETALLES Y ESTADO DE ENTREGA -->
+          <div class="info-box">
+            <!-- LUGAR DE ENTREGA -->
+            <div class="info-row" *ngIf="item.detalle_canje?.lugar_entrega || item.lugar_entrega">
               <ion-icon name="location-outline" color="primary"></ion-icon>
-              <span><strong>Lugar de entrega:</strong> {{ item.detalle_canje?.lugar_entrega }}</span>
+              <span><strong>Lugar de entrega:</strong> {{ item.detalle_canje?.lugar_entrega || item.lugar_entrega }}</span>
             </div>
 
-            <div class="info-row" *ngIf="item.retiro_premio?.fecha_limite">
+            <!-- FECHA LÍMITE DE RETIRO (SI EXISTE) -->
+            <div class="info-row" *ngIf="(item.retiro_premio?.[0]?.fecha_limite || item.retiro_premio?.fecha_limite || item.fecha_limite)">
               <ion-icon name="time-outline" color="warning"></ion-icon>
-              <span><strong>Fecha límite retiro:</strong> {{ item.retiro_premio?.fecha_limite | date:'dd/MM/yyyy' }}</span>
+              <span>
+                <strong>Fecha límite retiro:</strong> 
+                {{ (item.retiro_premio?.[0]?.fecha_limite || item.retiro_premio?.fecha_limite || item.fecha_limite) | date:'dd/MM/yyyy' }}
+              </span>
             </div>
 
-            <div class="info-row" *ngIf="item.retiro_premio">
+            <!-- ESTADO DE ENTREGA EN SEDE -->
+            <div class="info-row">
               <ion-icon 
-                [name]="item.retiro_premio?.retirado ? 'checkmark-circle-outline' : 'alert-circle-outline'" 
-                [color]="item.retiro_premio?.retirado ? 'success' : 'danger'">
+                [name]="obtenerIconoEstado(item.id_estado_canje)" 
+                [color]="obtenerBadgeColor(item.id_estado_canje, item.estado_canje?.descripcion)">
               </ion-icon>
               <span>
-                <strong>Estado retiro:</strong> 
-                {{ item.retiro_premio?.retirado ? 'Entregado al estudiante' : 'Pendiente de retiro en sede' }}
+                <strong>Estado entrega:</strong> 
+                {{ obtenerTextoEntrega(item) }}
               </span>
             </div>
           </div>
+
         </div>
 
       </ion-card>
     </div>
 
+    <!-- SINO HAY CANJES -->
     <ng-template #sinCanjes>
       <div class="empty-state ion-text-center ion-padding">
         <ion-icon name="ribbon-outline"></ion-icon>
         <h3>No tienes premios en esta sección</h3>
-        <p>Aún no has realizado solicitudes de canje de puntos.</p>
+        <p>Aún no has realizado solicitudes de canje de puntos con este estado.</p>
         <ion-button expand="block" fill="outline" color="primary" class="ion-margin-top" routerLink="/canjear">
           Ir a Canjear Puntos
         </ion-button>

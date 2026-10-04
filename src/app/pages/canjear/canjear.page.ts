@@ -33,7 +33,7 @@ export class CanjearPage implements OnInit {
     this.cargarDatos();
   }
 
-  cargarDatos() {
+cargarDatos() {
     this.cargando = true;
 
     // 1. Cargar Sesión del Usuario desde el almacenamiento local
@@ -54,9 +54,16 @@ export class CanjearPage implements OnInit {
       return;
     }
 
+    let identificador = sessionData;
+
     try {
       if (typeof sessionData === 'string' && sessionData.trim().startsWith('{')) {
         this.usuarioLogueado = JSON.parse(sessionData);
+        identificador = this.usuarioLogueado.token || 
+                        this.usuarioLogueado.token_acceso || 
+                        this.usuarioLogueado.rut_usuario || 
+                        this.usuarioLogueado.rut || 
+                        sessionData;
       } else {
         this.usuarioLogueado = { rut_usuario: sessionData };
       }
@@ -64,11 +71,33 @@ export class CanjearPage implements OnInit {
       this.usuarioLogueado = { rut_usuario: sessionData };
     }
 
-    const rut = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut;
+    const rut = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut || identificador;
 
-    // 2. Consultar Puntos Actuales y Catálogo
-    this.obtenerPuntosUsuario(rut);
+    // 2. Cargar Catálogo de Premios
     this.obtenerCatalogoPremios();
+
+    // 3. Consultar la sesión actualizada al Backend para leer 'puntaje_total' directamente de la BD
+    const servicioAny: any = this.actividadService;
+    if (typeof servicioAny.getUsuarioSesion === 'function') {
+      servicioAny.getUsuarioSesion(identificador).subscribe({
+        next: (userBD: any) => {
+          console.log('--- CANJEAR: DATOS USUARIO BD ---', userBD);
+          if (userBD) {
+            this.usuarioLogueado = { ...this.usuarioLogueado, ...userBD };
+            // Extrae puntaje_total de la respuesta oficial del backend
+            this.misPuntos = userBD.puntaje_total ?? userBD.puntaje ?? userBD.puntos ?? 0;
+          }
+          this.cargando = false;
+          this.cdRef.detectChanges();
+        },
+        error: (err: any) => {
+          console.warn('Fallback a consulta directa por RUT/Storage:', err);
+          this.obtenerPuntosUsuario(rut);
+        }
+      });
+    } else {
+      this.obtenerPuntosUsuario(rut);
+    }
   }
 
   private obtenerPuntosUsuario(rut: string) {
@@ -77,20 +106,25 @@ export class CanjearPage implements OnInit {
     if (rut && typeof servicioAny.getPuntajeTotal === 'function') {
       servicioAny.getPuntajeTotal(rut).subscribe({
         next: (res: any) => {
-          this.misPuntos = res?.puntaje ?? res?.puntos ?? this.usuarioLogueado?.puntaje_total ?? 0;
-          this.cdRef.detectChanges();
+          console.log('--- CANJEAR: RESPUESTA PUNTAJE TOTAL ---', res);
+          // Soporta objetos { puntaje_total: X }, { puntaje: X }, { puntos: X } o numéricos directos
+          this.misPuntos = res?.puntaje_total ?? res?.puntaje ?? res?.puntos ?? (typeof res === 'number' ? res : 0);
+          this.actualizarPuntosLocales(this.misPuntos);
         },
-        error: () => {
-          this.misPuntos = this.usuarioLogueado?.puntaje_total || 0;
+        error: (err: any) => {
+          console.error('Error al obtener puntaje total:', err);
+          this.misPuntos = this.usuarioLogueado?.puntaje_total ?? this.usuarioLogueado?.puntaje ?? 0;
+          this.cargando = false;
           this.cdRef.detectChanges();
         }
       });
     } else {
-      this.misPuntos = this.usuarioLogueado?.puntaje_total || 0;
+      this.misPuntos = this.usuarioLogueado?.puntaje_total ?? this.usuarioLogueado?.puntaje ?? 0;
+      this.cargando = false;
       this.cdRef.detectChanges();
     }
   }
-
+  
   private obtenerCatalogoPremios() {
     const servicioAny: any = this.actividadService;
     const peticion$ = typeof servicioAny.getPremios === 'function'

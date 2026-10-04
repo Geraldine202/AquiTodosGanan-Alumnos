@@ -1,112 +1,238 @@
 .perfil-content {
   --background: #0d131d;
 
+  /* Elimina fondo blanco por defecto de ion-list */
+  ion-list {
+    background: transparent !important;
+    --background: transparent !important;
+  }
+
+  /* ------------------------------------------
+     HERO CARD Y AVATAR
+  ------------------------------------------ */
   .profile-hero-card {
     background: linear-gradient(135deg, #131b2a 0%, #1e293b 100%);
-    padding: 30px 20px;
+    padding: 28px 20px 20px;
     border-bottom-left-radius: 24px;
     border-bottom-right-radius: 24px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    display: flex;
+    justify-content: center;
 
+    .hero-content {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    /* CONTENEDOR DEL AVATAR */
     .avatar-container {
       position: relative;
-      display: inline-block;
-      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 14px;
 
       .avatar-box {
-        ion-icon {
-          font-size: 88px;
-          color: #3880ff;
+        position: relative;
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: #1e293b;
+        border: 3px solid #3880ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(56, 128, 255, 0.3);
+
+        .profile-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .avatar-placeholder {
+          ion-icon {
+            font-size: 64px;
+            color: #3880ff;
+          }
+        }
+
+        /* Ícono de la cámara superpuesto en la esquina de la foto */
+        .camera-badge {
+          position: absolute;
+          bottom: 0;
+          right: 0;
+          background: #2dd36f;
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid #1e293b;
+
+          ion-icon {
+            font-size: 16px;
+            color: #ffffff;
+          }
         }
       }
 
+      .file-input-hidden {
+        display: none;
+      }
+
       .badge-nivel {
-        position: absolute;
-        bottom: -4px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 0.75rem;
-        padding: 4px 10px;
+        margin-top: 10px;
+        font-size: 0.78rem;
+        padding: 5px 12px;
         border-radius: 12px;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 4px;
+        font-weight: 600;
       }
     }
 
     .user-name {
       color: #ffffff;
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 700;
-      margin: 8px 0 2px 0;
+      margin: 4px 0 2px 0;
     }
 
     .user-rut {
       color: #94a3b8;
-      font-size: 0.9rem;
-      margin: 0;
+      font-size: 0.88rem;
+      margin: 0 0 16px 0;
     }
 
     .points-card {
+      width: 100%;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      padding: 16px;
+      padding: 14px 18px;
 
       .points-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
         .label {
           color: #94a3b8;
           font-size: 0.75rem;
           font-weight: 600;
           letter-spacing: 0.5px;
-          display: block;
         }
 
         .val {
           display: flex;
           align-items: center;
-          justify-content: center;
           gap: 6px;
-          margin-top: 4px;
 
           .star-icon {
             color: #ffc409;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
           }
 
           span {
             color: #ffffff;
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
           }
 
           small {
             color: #94a3b8;
-            font-size: 1rem;
+            font-size: 0.9rem;
             align-self: flex-end;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
           }
         }
       }
     }
   }
 
+  /* ------------------------------------------
+     SEGMENTOS (NAVEGACIÓN)
+  ------------------------------------------ */
+  .segment-container {
+    padding: 16px 16px 0 16px;
+  }
+
+  .custom-segment {
+    background: #1e293b;
+    border-radius: 14px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    ion-segment-button {
+      --color: #94a3b8;
+      --color-checked: #ffffff;
+      --indicator-color: #3880ff;
+      --border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.82rem;
+      transition: all 0.25s ease-in-out;
+
+      ion-icon {
+        font-size: 1.1rem;
+        margin-bottom: 2px;
+      }
+
+      &.segment-button-checked {
+        background: #3880ff;
+        box-shadow: 0 4px 12px rgba(56, 128, 255, 0.35);
+
+        ion-icon, ion-label {
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  /* ------------------------------------------
+     SECCIONES Y TAB CONTENIDOS
+  ------------------------------------------ */
+  .tab-padding {
+    padding: 0 16px 24px 16px;
+  }
+
   .margin-top-section {
-    margin-top: 24px;
+    margin-top: 20px;
   }
 
   .section-title {
+    .header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     h2 {
       color: #ffffff;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 600;
       display: flex;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
+      margin: 0 0 12px 0;
+    }
+
+    .btn-edit {
+      --color: #3880ff;
+      font-weight: 600;
+      margin: 0;
     }
   }
 
+  /* LISTAS Y ELEMENTOS */
   .info-list, .options-list {
     background: transparent;
     border-radius: 16px;
@@ -119,21 +245,122 @@
       margin-bottom: 8px;
       border-radius: 12px;
 
+      ion-icon {
+        font-size: 20px;
+        margin-right: 8px;
+      }
+
       h3 {
         color: #94a3b8;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
+        margin: 0 0 2px 0;
       }
 
       p {
         color: #ffffff;
         font-size: 0.95rem;
         font-weight: 500;
+        margin: 0;
+      }
+
+      ion-input {
+        --color: #ffffff;
+        --placeholder-color: #64748b;
       }
     }
 
     .logout-item {
       --background: rgba(235, 68, 90, 0.1);
       border: 1px solid rgba(235, 68, 90, 0.2);
+    }
+  }
+
+  .save-btn {
+    --border-radius: 12px;
+    margin-top: 12px;
+    font-weight: 600;
+  }
+
+  /* TARJETAS PUNTOS Y CANJES */
+  .history-item {
+    --background: #1e293b;
+    --color: #ffffff;
+    --border-color: rgba(255, 255, 255, 0.05);
+    margin-bottom: 8px;
+    border-radius: 12px;
+
+    h3 {
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.92rem;
+    }
+
+    p {
+      color: #94a3b8;
+      font-size: 0.78rem;
+    }
+
+    .points-badge {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+  }
+
+  .canje-card {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    margin: 0 0 12px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+    .canje-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+
+      ion-card-title {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+    }
+
+    ion-card-subtitle {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+
+    ion-card-content {
+      color: #cbd5e1;
+      padding-top: 8px;
+
+      p {
+        margin: 0;
+        font-size: 0.88rem;
+      }
+    }
+  }
+
+  .loading-box {
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+
+    .large-icon {
+      font-size: 48px;
+      color: #64748b;
+    }
+
+    p {
+      color: #94a3b8;
+      margin-top: 8px;
+      font-size: 0.88rem;
     }
   }
 }

@@ -39,13 +39,9 @@ export class HomePage implements OnInit {
     this.cargarDatosUsuario();
   }
 
-  cargarDatosUsuario() {
-    // === DIAGNÓSTICO EN CONSOLA ===
+cargarDatosUsuario() {
     console.log('--- BUSCANDO SESIÓN EN STORAGE ---');
-    console.log('localStorage keys:', Object.keys(localStorage));
-    console.log('sessionStorage keys:', Object.keys(sessionStorage));
-
-    // Revisamos absolutamente todas las posibles claves que usa el Header/Login
+    
     const possibleKeys = [
       'usuario', 'user', 'currentUser', 'usuarioLogueado', 
       'token', 'token_acceso', 'auth', 'session'
@@ -64,8 +60,6 @@ export class HomePage implements OnInit {
       }
     }
 
-    console.log(`Clave detectada: [${keyEncontrada}]`, sessionData);
-
     if (sessionData) {
       try {
         let identificador = sessionData;
@@ -76,17 +70,19 @@ export class HomePage implements OnInit {
           identificador = objetoUsuario.token || objetoUsuario.token_acceso || objetoUsuario.rut_usuario || objetoUsuario.rut || objetoUsuario.correo || sessionData;
         }
 
-        // Si tenemos datos locales inmediatos (como los que muestra el Header), los aplicamos YA
         if (objetoUsuario) {
           const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || objetoUsuario.nombre_usuario || objetoUsuario.username || 'prueba';
           this.nombreAlumno = nombre.trim().split(' ')[0];
           this.estaLogueado = true;
+          // Carga inicial rápida con lo que haya en storage
+          this.misPuntos = objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? 0;
+          this.calcularNivel(this.misPuntos);
         } else {
           this.estaLogueado = true;
           this.nombreAlumno = sessionData;
         }
 
-        // Consultamos al backend para actualizar los puntos y el nombre oficial de la BD
+        // Consultar al backend la verdad absoluta de la BD
         if (identificador) {
           this.actividadService.getUsuarioSesion(identificador).subscribe({
             next: (userBD: any) => {
@@ -100,12 +96,27 @@ export class HomePage implements OnInit {
 
                 this.misPuntos = userBD.puntaje_total ?? 0;
                 this.calcularNivel(this.misPuntos);
+
+                // =========================================================
+                // CORRECCIÓN CLAVE: Sobrescribir el Storage Local desactualizado
+                // =========================================================
+                if (keyEncontrada) {
+                  // Si el storage guardaba un objeto, lo combinamos con los datos frescos del backend
+                  if (objetoUsuario) {
+                    const objetoActualizado = { ...objetoUsuario, ...userBD };
+                    localStorage.setItem(keyEncontrada, JSON.stringify(objetoActualizado));
+                  } else {
+                    localStorage.setItem(keyEncontrada, JSON.stringify(userBD));
+                  }
+                }
+                
+                // Aseguramos también la clave principal 'usuario'
+                localStorage.setItem('usuario', JSON.stringify(userBD));
               }
               this.cdRef.detectChanges();
             },
             error: (err: any) => {
-              console.warn('Backend respondió error o no encontró token, pero mantenemos sesión local:', err);
-              // Aunque falle el backend, si hay datos en storage mantenemos al usuario logueado
+              console.warn('Backend respondió error, se mantiene sesión local:', err);
               this.estaLogueado = true;
               this.cdRef.detectChanges();
             }
@@ -113,7 +124,7 @@ export class HomePage implements OnInit {
         }
       } catch (e) {
         console.error('Error parseando sesión:', e);
-        this.estaLogueado = true; // Forzamos para no degradar la experiencia si hay algo guardado
+        this.estaLogueado = true;
       }
     } else {
       console.warn('No se encontró ninguna clave de usuario en el storage.');

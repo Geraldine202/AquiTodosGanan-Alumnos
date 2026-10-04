@@ -10,11 +10,11 @@ import { ActividadService } from 'src/app/services/actividad';
 })
 export class MisPremiosPage implements OnInit {
 
-  misCanjes: any[] = [];
+  todosLosCanjes: any[] = [];
   canjesFiltrados: any[] = [];
   filtroEstado: string = 'TODOS';
   cargando: boolean = true;
-  usuarioLogueado: any = null;
+  rutUsuario: string = '';
 
   constructor(
     private actividadService: ActividadService,
@@ -23,116 +23,139 @@ export class MisPremiosPage implements OnInit {
   ) { }
 
   ngOnInit() {
-    this.cargarDatos();
+    this.obtenerRutYCanjes();
   }
 
   ionViewWillEnter() {
-    this.cargarDatos();
+    this.obtenerRutYCanjes();
   }
 
-  cargarDatos() {
+  /**
+   * Obtiene el RUT desde el almacenamiento local y llama al servicio
+   */
+  obtenerRutYCanjes() {
     this.cargando = true;
 
-    // 1. Obtener datos de sesión
-    const possibleKeys = [
-      'usuario', 'user', 'currentUser', 'usuarioLogueado', 
-      'token', 'token_acceso', 'auth', 'session'
-    ];
+    const sessionData = localStorage.getItem('usuarioLogueado') || 
+                        localStorage.getItem('usuario') || 
+                        localStorage.getItem('user') ||
+                        sessionStorage.getItem('usuarioLogueado');
 
-    let sessionData: any = null;
-    for (const key of possibleKeys) {
-      const valLocal = localStorage.getItem(key);
-      const valSession = sessionStorage.getItem(key);
-      if (valLocal || valSession) {
-        sessionData = valLocal || valSession;
-        break;
+    if (sessionData) {
+      try {
+        const user = JSON.parse(sessionData);
+        this.rutUsuario = user.rut_usuario || user.rut || user.alumno?.rut_usuario || user.alumno?.rut || '';
+
+        if (this.rutUsuario) {
+          this.cargarMisCanjes(this.rutUsuario);
+        } else {
+          console.warn('No se encontró el RUT en la sesión del usuario');
+          this.cargando = false;
+        }
+      } catch (e) {
+        console.error('Error al leer datos de la sesión:', e);
+        this.cargando = false;
       }
-    }
-
-    if (!sessionData) {
+    } else {
       this.cargando = false;
       this.router.navigate(['/login']);
-      return;
     }
+  }
 
-    try {
-      if (typeof sessionData === 'string' && sessionData.trim().startsWith('{')) {
-        this.usuarioLogueado = JSON.parse(sessionData);
-      } else {
-        this.usuarioLogueado = { rut_usuario: sessionData };
-      }
-    } catch (e) {
-      this.usuarioLogueado = { rut_usuario: sessionData };
-    }
-
-    const rutUsuario = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut || this.usuarioLogueado?.id;
-    const servicioAny: any = this.actividadService;
-
-    // 2. Cargar solicitudes de canje asociadas al estudiante
-    const peticion$ = typeof servicioAny.getMisCanjes === 'function' 
-      ? servicioAny.getMisCanjes(rutUsuario)
-      : this.actividadService.getActividades(); // Fallback si no está declarado getMisCanjes en el servicio
-
-    peticion$.subscribe({
+  /**
+   * Consume el endpoint actualizado del backend
+   */
+  cargarMisCanjes(rut: string) {
+    this.actividadService.getMisCanjes(rut).subscribe({
       next: (res: any) => {
-        const lista: any[] = Array.isArray(res) ? res : (res?.data || []);
+        const lista = Array.isArray(res) ? res : (res?.data || res?.canjes || []);
         
-        // Formatear los registros basándonos en las tablas:
-        // solicitud_canje, premio, estado_canje, detalle_canje y retiro_premio
-        this.misCanjes = lista.map((item: any) => ({
-          id_canje: item.id_canje,
-          fecha_solicitud: item.fecha_solicitud || new Date(),
-          costo_puntaje: item.costo_puntaje || item.puntos_usados || 0,
-          estado_canje: item.estado_canje || { descripcion: item.estado || 'Pendiente' },
-          premio: item.premio || {
-            descripcion: item.nombre_premio || 'Premio Canjeado',
-            imagen: item.imagen || 'assets/slide1.jpg'
-          },
-          detalle_canje: item.detalle_canje || {
-            lugar_entrega: item.lugar_entrega || 'Sede Principal - DAE'
-          },
-          retiro_premio: item.retiro_premio || {
-            fecha_limite: item.fecha_limite || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            retirado: item.retirado !== undefined ? item.retirado : false
-          }
-        }));
-
-        this.filtrarCanjes();
+        this.todosLosCanjes = lista;
+        this.filtrarCanjes(); // Aplica el filtro (por defecto 'TODOS')
+        
         this.cargando = false;
         this.cdRef.detectChanges();
       },
       error: (err: any) => {
-        console.error('Error al cargar mis canjes:', err);
-        this.misCanjes = [];
-        this.filtrarCanjes();
+        console.error('Error al cargar canjes:', err);
+        this.todosLosCanjes = [];
+        this.canjesFiltrados = [];
         this.cargando = false;
         this.cdRef.detectChanges();
       }
     });
   }
-
+obtenerIconoEstado(idEstado?: number): string {
+  switch (idEstado) {
+    case 1: return 'time-outline';               // Solicitado (Reloj)
+    case 2: return 'alert-circle-outline';       // Aprobado (Alerta/Pendiente retiro)
+    case 3: return 'checkmark-circle-outline';  // Retirado (Check verde)
+    case 4: return 'close-circle-outline';      // Cancelado (Cruz roja)
+    default: return 'help-circle-outline';
+  }
+}
+  /**
+   * Filtra los canjes según la pestaña seleccionada en el ion-segment
+   */
   filtrarCanjes() {
     if (this.filtroEstado === 'TODOS') {
-      this.canjesFiltrados = [...this.misCanjes];
-    } else if (this.filtroEstado === 'RETIRADO') {
-      this.canjesFiltrados = this.misCanjes.filter(c => c.retiro_premio?.retirado === true);
-    } else if (this.filtroEstado === 'PENDIENTE') {
-      this.canjesFiltrados = this.misCanjes.filter(c => !c.retiro_premio?.retirado);
+      this.canjesFiltrados = [...this.todosLosCanjes];
+      return;
     }
+
+    this.canjesFiltrados = this.todosLosCanjes.filter(item => {
+      const idEstado = item.id_estado_canje || item.estado_canje?.id_estado_canje;
+      const desc = (item.estado_canje?.descripcion || item.estado || '').toUpperCase();
+
+      switch (this.filtroEstado) {
+        case 'SOLICITADO':
+          return idEstado === 1 || desc.includes('SOLICITADO');
+        case 'APROBADO':
+          return idEstado === 2 || desc.includes('APROBADO');
+        case 'RETIRADO':
+          return idEstado === 3 || desc.includes('RETIRADO');
+        case 'CANCELADO':
+          return idEstado === 4 || desc.includes('CANCELADO');
+        default:
+          return true;
+      }
+    });
   }
 
-  obtenerBadgeColor(estado: string): string {
-    if (!estado) return 'primary';
-    const est = estado.toLowerCase();
-    if (est.includes('entregado') || est.includes('completado') || est.includes('retirado')) {
-      return 'success';
-    }
-    if (est.includes('pendiente') || est.includes('solicitado')) {
-      return 'warning';
-    }
-    if (est.includes('cancelado') || est.includes('rechazado')) {
-      return 'danger';
-    }
+  /**
+   * Asigna colores a los Badges según el id_estado_canje
+   */
+  obtenerBadgeColor(idEstado?: number, descripcion?: string): string {
+    const id = idEstado || 0;
+    const desc = (descripcion || '').toUpperCase();
+
+    if (id === 1 || desc.includes('SOLICITADO')) return 'medium';   // Solicitado (Gris/Grisáceo)
+    if (id === 2 || desc.includes('APROBADO')) return 'warning';    // Aprobado (Amarillo/Naranja)
+    if (id === 3 || desc.includes('RETIRADO')) return 'success';    // Retirado (Verde)
+    if (id === 4 || desc.includes('CANCELADO')) return 'danger';    // Cancelado (Rojo)
+
     return 'primary';
+  }
+
+  /**
+   * Genera el texto del estado de entrega en la tarjeta
+   */
+  obtenerTextoEntrega(item: any): string {
+    const id = item.id_estado_canje || item.estado_canje?.id_estado_canje;
+    const desc = (item.estado_canje?.descripcion || item.estado || '').toUpperCase();
+
+    if (id === 1 || desc.includes('SOLICITADO')) {
+      return 'Solicitud ingresada, pendiente de revisión';
+    }
+    if (id === 2 || desc.includes('APROBADO')) {
+      return 'Listo para retirar en la sede correspondiente';
+    }
+    if (id === 3 || desc.includes('RETIRADO')) {
+      return 'Entregado al estudiante';
+    }
+    if (id === 4 || desc.includes('CANCELADO')) {
+      return 'Solicitud cancelada';
+    }
+    return 'En proceso';
   }
 }

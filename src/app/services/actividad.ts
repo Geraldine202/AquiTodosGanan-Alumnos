@@ -396,4 +396,14 @@ getInscripcionesPorAlumno(rutOToken: string): Observable<InscripcionDetalle[]> {
       this.httpOptions
     );
   }
+
+// En src/app/services/actividad.ts
+
+getHistorialPuntos(rut: string): Observable<any> {
+  return this.http.get(`${this.apiUrl}/puntos/historial/${rut}`);
+}
+
+getMisCanjes(rut: string): Observable<any> {
+  return this.http.get(`${this.apiUrl}/premios/mis-canjes/${rut}`);
+}
 }
