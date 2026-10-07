@@ -2,7 +2,7 @@
 
 <ion-content [fullscreen]="true" class="canjear-content">
 
-  <!-- BANNER TARJETA DE PUNTOS ACTUALES -->
+  <!-- BANNER TARJETA DE PUNTOS -->
   <div class="user-points-card ion-padding">
     <div class="card-body">
       <div class="points-label">TUS PUNTOS DISPONIBLES</div>
@@ -11,11 +11,10 @@
         <h2>{{ misPuntos }}</h2>
         <span>pts</span>
       </div>
-      <p class="subtext">Elige un premio e envía tu solicitud de canje</p>
+      <p class="subtext">Elige un premio y envía tu solicitud de canje</p>
     </div>
   </div>
 
-  <!-- TÍTULO SECCIÓN -->
   <div class="section-title ion-padding-horizontal margin-top-section">
     <h2>
       <ion-icon name="gift-outline" color="primary"></ion-icon> 
@@ -23,26 +22,28 @@
     </h2>
   </div>
 
-  <!-- INDICADOR DE CARGA GENERAL -->
+  <!-- INDICADOR DE CARGA -->
   <div *ngIf="cargando" class="ion-text-center ion-padding my-4">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
-    <p class="text-muted">Cargando catálogo de recompensas...</p>
+    <p class="text-muted">Cargando catálogo...</p>
   </div>
 
   <!-- CATÁLOGO DE PREMIOS -->
   <div *ngIf="!cargando" class="ion-padding-horizontal">
     
-    <div *ngIf="premios.length > 0; else sinPremios">
+    <div *ngIf="premios.length > 0; else sinPremios" class="premios-grid">
       <ion-card class="premio-card" *ngFor="let premio of premios">
+        
+        <!-- MARCO DE IMAGEN CON MARGEN MÁXIMO -->
         <div class="card-img-wrapper">
-          <img [src]="premio.imagen || 'assets/slide1.jpg'" [alt]="premio.nombre">
+          <img [src]="premio.imagen || 'assets/logo.png'" [alt]="premio.nombre" class="premio-img">
           <ion-badge color="warning" class="pts-badge">
             <ion-icon name="star"></ion-icon> {{ premio.costo_puntos }} pts
           </ion-badge>
         </div>
 
         <ion-card-header>
-          <ion-card-title>{{ premio.nombre }}</ion-card-title>
+          <ion-card-title class="premio-title">{{ premio.nombre }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
@@ -58,36 +59,65 @@
             </span>
           </p>
 
+          <!-- ACCIÓN CON EVALUACIÓN CORRECTA DE PRIORIDAD Y OPCIÓN DE CANCELAR -->
           <div class="action-box ion-margin-top">
+            
+            <!-- BOTÓN PRINCIPAL -->
             <ion-button 
               expand="block" 
-              [color]="premio.stock <= 0 ? 'medium' : (misPuntos >= premio.costo_puntos ? 'success' : 'medium')"
-              [disabled]="misPuntos < premio.costo_puntos || premio.stock <= 0 || procesando"
+              [color]="premio.solicitado 
+                        ? 'tertiary' 
+                        : (premio.ya_canjeado 
+                            ? 'medium' 
+                            : (premio.stock <= 0 
+                                ? 'medium' 
+                                : (misPuntos >= premio.costo_puntos ? 'success' : 'medium')))"
+              [disabled]="premio.solicitado || premio.ya_canjeado || misPuntos < premio.costo_puntos || premio.stock <= 0 || premio.procesando"
+              [class.btn-solicitado]="premio.solicitado"
               (click)="confirmarCanje(premio)">
               
-              <ion-spinner *ngIf="procesando" name="crescent" slot="start"></ion-spinner>
-              <ion-icon *ngIf="!procesando" name="paper-plane-outline" slot="start"></ion-icon>
+              <ion-spinner *ngIf="premio.procesando" name="crescent" slot="start"></ion-spinner>
+              <ion-icon *ngIf="!premio.procesando && premio.solicitado" name="checkmark-circle" slot="start"></ion-icon>
+              <ion-icon *ngIf="!premio.procesando && premio.ya_canjeado && !premio.solicitado" name="lock-closed-outline" slot="start"></ion-icon>
+              <ion-icon *ngIf="!premio.procesando && !premio.ya_canjeado" name="paper-plane-outline" slot="start"></ion-icon>
               
-              <span *ngIf="!procesando">
+              <span *ngIf="!premio.procesando">
                 {{ 
-                  premio.stock <= 0 
-                    ? 'Agotado' 
-                    : (misPuntos >= premio.costo_puntos ? 'Solicitar Canje' : 'Puntos Insuficientes') 
+                  premio.solicitado 
+                    ? 'SOLICITUD ENVIADA' 
+                    : (premio.ya_canjeado
+                        ? 'PREMIO YA CANJEADO'
+                        : (premio.stock <= 0 
+                            ? 'AGOTADO EN TU SEDE' 
+                            : (misPuntos >= premio.costo_puntos ? 'SOLICITAR CANJE' : 'PUNTOS INSUFFICIENTES'))) 
                 }}
               </span>
-              <span *ngIf="procesando">Enviando solicitud...</span>
+              <span *ngIf="premio.procesando">Procesando...</span>
             </ion-button>
+
+            <!-- BOTÓN PARA CANCELAR SOLICITUD PENDIENTE (Solo cuando estado = 1 Solicitado) -->
+            <ion-button 
+              *ngIf="premio.solicitado" 
+              expand="block" 
+              fill="outline" 
+              color="danger" 
+              size="small"
+              class="ion-margin-top"
+              [disabled]="premio.procesando"
+              (click)="confirmarCancelacion(premio)">
+              <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+              Cancelar Solicitud
+            </ion-button>
+
           </div>
         </ion-card-content>
       </ion-card>
     </div>
 
-    <!-- ESTADO VACÍO CUANDO NO HAY PREMIOS -->
     <ng-template #sinPremios>
       <div class="empty-state ion-text-center ion-padding">
-        <ion-icon name="gift-outline" style="font-size: 64px; color: var(--ion-color-medium);"></ion-icon>
+        <ion-icon name="gift-outline"></ion-icon>
         <h3>No hay premios en el catálogo</h3>
-        <p>Vuelve más tarde para consultar las nuevas recompensas disponibles.</p>
       </div>
     </ng-template>
 

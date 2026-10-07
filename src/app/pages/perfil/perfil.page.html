@@ -171,7 +171,7 @@
         <ion-icon name="checkmark-circle" slot="start" color="success"></ion-icon>
         <ion-label>
           <h3>{{ item.actividad?.nombre_actividad || item.actividad?.nombre || 'Asistencia a Actividad' }}</h3>
-          <p>{{ (item.fecha_inscripcion || item.fecha) | date:'dd/MM/yyyy HH:mm' }}</p>
+          <p>{{ (item.fecha_inscripcion || item.fecha) | date:'dd/MM/yyyy' }}</p>
         </ion-label>
         <ion-note slot="end" color="success" class="points-badge">
           +{{ item.puntos_ganados || 0 }} pts

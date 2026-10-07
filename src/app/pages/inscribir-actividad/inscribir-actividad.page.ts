@@ -12,6 +12,7 @@ import { ActividadService, InscripcionCreate, InscripcionDetalle } from 'src/app
 export class InscribirActividadPage implements OnInit {
 
   actividadesDisponibles: any[] = [];
+  misInscripcionesPrevias: any[] = [];
   cargando: boolean = true;
   procesando: boolean = false;
   usuarioLogueado: any = null;
@@ -84,7 +85,6 @@ export class InscribirActividadPage implements OnInit {
       return;
     }
 
-    // Limpieza de RUT: quitar puntos para evitar problemas con la API
     const rutLimpio = String(rawRut).replace(/\./g, '').trim();
 
     // 3. Cargar actividades filtradas por Sede
@@ -95,11 +95,9 @@ export class InscribirActividadPage implements OnInit {
 
         const ahora = new Date();
 
-        // Filtrar vigencia usando la columna `fecha` y opcionalmente `hora_termino`
         const actividadesVigentes = listaSede.filter((act: any) => {
           if (!act.fecha) return true;
 
-          // Convertir "YYYY-MM-DD" + "HH:MM:SS" a objeto Date de evaluación
           const fechaTerminoStr = act.hora_termino 
             ? `${act.fecha}T${act.hora_termino}` 
             : `${act.fecha}T23:59:59`;
@@ -111,14 +109,12 @@ export class InscribirActividadPage implements OnInit {
         // 4. Consultar inscripciones previas del alumno
         this.actividadService.getInscripcionesPorAlumno(rutLimpio).subscribe({
           next: (inscripciones: InscripcionDetalle[]) => {
-            const listInsc = Array.isArray(inscripciones) ? inscripciones : [];
-            const idsInscritos = listInsc.map(i => i.id_actividad);
+            this.misInscripcionesPrevias = Array.isArray(inscripciones) ? inscripciones : [];
+            const idsInscritos = this.misInscripcionesPrevias.map(i => i.id_actividad);
 
-            this.puntajeTotal = listInsc.reduce((acc, curr) => acc + (curr.puntos_ganados || 0), 0);
+            this.puntajeTotal = this.misInscripcionesPrevias.reduce((acc, curr) => acc + (curr.puntos_ganados || 0), 0);
 
-            // Mapear campos adaptados a las tablas hijas de la base de datos SQL
             this.actividadesDisponibles = actividadesVigentes.map((act: any) => {
-              // Obtener datos de tablas hijas si vienen incluidas en la consulta ORM
               const cuposDisponibles = act.cupo_actividad?.[0]?.cantidad ?? act.cupos ?? 0;
               const lugarNombre = act.lugar_actividad?.[0]?.descripcion ?? act.calendario?.[0]?.lugar ?? act.lugar ?? 'Por definir';
               const puntosOtorgados = act.puntaje_act?.[0]?.cantidad ?? act.puntos ?? 0;
@@ -160,15 +156,48 @@ export class InscribirActividadPage implements OnInit {
     });
   }
 
+  // --- VALIDACIÓN LOCAL PREVIA EN FRONTEND (Opcional) ---
+  validarTraslapeLocal(nuevaActividad: any): { traslape: boolean; actividadConflicto?: any } {
+    if (!this.misInscripcionesPrevias || this.misInscripcionesPrevias.length === 0) {
+      return { traslape: false };
+    }
+
+    const fechaNueva = String(nuevaActividad.fecha);
+    const iniNueva = String(nuevaActividad.hora_inicio || '00:00');
+    const finNueva = String(nuevaActividad.hora_termino || '23:59');
+
+    for (const item of this.misInscripcionesPrevias) {
+      const actInscrita = item.actividad || item;
+      if (actInscrita && String(actInscrita.fecha) === fechaNueva) {
+        const iniPrev = String(actInscrita.hora_inicio || '00:00');
+        const finPrev = String(actInscrita.hora_termino || '23:59');
+
+        if (iniNueva < finPrev && finNueva > iniPrev) {
+          return { traslape: true, actividadConflicto: actInscrita };
+        }
+      }
+    }
+    return { traslape: false };
+  }
+
   async confirmarInscripcion(actividad: any) {
+    // Chequeo previo local
+    const conflictoLocal = this.validarTraslapeLocal(actividad);
+    if (conflictoLocal.traslape) {
+      const conf = conflictoLocal.actividadConflicto;
+      const nomConf = conf.nombre_actividad || conf.nombre || 'otra actividad';
+      await this.mostrarAlerta(
+        'Conflicto de Horario',
+        `Ya estás inscrito en "${nomConf}" el mismo día de ${conf.hora_inicio} a ${conf.hora_termino}. Debes cancelarla o esperar que finalice antes para poder inscribirte en esta.`
+      );
+      return;
+    }
+
     const alert = await this.alertController.create({
       header: 'Confirmar Inscripción',
       message: `¿Deseas inscribirte en "${actividad.nombre_actividad}"?`,
       buttons: [
-        {
-          text: 'Cancelar',
-          role: 'cancel'
-        },
+        { text: 'Cancelar', role: 'cancel' },
         {
           text: 'Sí, inscribirme',
           handler: () => {
@@ -181,57 +210,71 @@ export class InscribirActividadPage implements OnInit {
     await alert.present();
   }
 
-ejecutarInscripcion(actividad: any) {
-  this.procesando = true;
+  ejecutarInscripcion(actividad: any) {
+    this.procesando = true;
 
-  const rawRut = 
-    this.usuarioLogueado?.rut_usuario || 
-    this.usuarioLogueado?.rut_alumno || 
-    this.usuarioLogueado?.rut || 
-    localStorage.getItem('rut_usuario') ||
-    localStorage.getItem('token_acceso');
+    const rawRut = 
+      this.usuarioLogueado?.rut_usuario || 
+      this.usuarioLogueado?.rut_alumno || 
+      this.usuarioLogueado?.rut || 
+      localStorage.getItem('rut_usuario') ||
+      localStorage.getItem('token_acceso');
 
-  if (!rawRut) {
-    this.procesando = false;
-    this.mostrarToast('No se encontró el RUT del alumno en la sesión activa', 'danger');
-    return;
-  }
+    if (!rawRut) {
+      this.procesando = false;
+      this.mostrarToast('No se encontró el RUT del alumno en la sesión activa', 'danger');
+      return;
+    }
 
-  const rutLimpio = String(rawRut).replace(/\./g, '').trim();
+    const rutLimpio = String(rawRut).replace(/\./g, '').trim();
 
-  // Se envía rut_alumno como lo exige el Pydantic de FastAPI
-  const payload: InscripcionCreate = {
-    rut_alumno: rutLimpio,
-    id_actividad: Number(actividad.id_actividad) // Garantiza formato entero
-  };
+    const payload: InscripcionCreate = {
+      rut_alumno: rutLimpio,
+      id_actividad: Number(actividad.id_actividad)
+    };
 
-  this.actividadService.inscribirAlumno(payload).subscribe({
-    next: async (res) => {
-      actividad.inscrito = true;
-      
-      if (res.cupos_restantes !== undefined) {
-        actividad.cupos_disponibles = res.cupos_restantes;
-        if (actividad.cupo_actividad?.[0]) {
-          actividad.cupo_actividad[0].cantidad = res.cupos_restantes;
+    this.actividadService.inscribirAlumno(payload).subscribe({
+      next: async (res) => {
+        actividad.inscrito = true;
+        
+        if (res.cupos_restantes !== undefined) {
+          actividad.cupos_disponibles = res.cupos_restantes;
+          if (actividad.cupo_actividad?.[0]) {
+            actividad.cupo_actividad[0].cantidad = res.cupos_restantes;
+          }
+        }
+
+        this.procesando = false;
+        await this.mostrarToast(res.mensaje || '¡Inscripción realizada con éxito!', 'success');
+        this.router.navigate(['/mis-actividades']);
+      },
+      error: async (err: any) => {
+        console.error('Error al inscribir:', err);
+        this.procesando = false;
+        
+        const mensajeError = typeof err.error?.detail === 'string' 
+          ? err.error.detail 
+          : 'No se pudo procesar la inscripción.';
+
+        // Muestra alerta prominente si es error de validación (400)
+        if (err.status === 400) {
+          await this.mostrarAlerta('No es posible inscribir', mensajeError);
+        } else {
+          await this.mostrarToast(mensajeError, 'danger');
         }
       }
+    });
+  }
 
-      this.procesando = false;
-      await this.mostrarToast(res.mensaje || '¡Inscripción realizada con éxito!', 'success');
-      this.router.navigate(['/mis-actividades']);
-    },
-    error: async (err: any) => {
-      console.error('Error al inscribir:', err);
-      this.procesando = false;
-      
-      const mensajeError = typeof err.error?.detail === 'string' 
-        ? err.error.detail 
-        : 'No se pudo procesar la inscripción.';
+  async mostrarAlerta(titulo: string, mensaje: string) {
+    const alert = await this.alertController.create({
+      header: titulo,
+      message: mensaje,
+      buttons: ['Entendido']
+    });
+    await alert.present();
+  }
 
-      await this.mostrarToast(mensajeError, 'danger');
-    }
-  });
-}
   async mostrarToast(mensaje: string, color: string) {
     const toast = await this.toastController.create({
       message: mensaje,

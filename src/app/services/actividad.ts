@@ -406,4 +406,10 @@ getHistorialPuntos(rut: string): Observable<any> {
 getMisCanjes(rut: string): Observable<any> {
   return this.http.get(`${this.apiUrl}/premios/mis-canjes/${rut}`);
 }
+getSolicitudesCanjeUsuario(rutUsuario: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/premios/mis-canjes/${rutUsuario}`);
+  }
+cancelarSolicitudCanje(payload: { rut_alumno: string; id_premio: number }): Observable<any> {
+  return this.http.post<any>(`${this.apiUrl}/solicitud-canje/cancelar`, payload);
+}
 }
