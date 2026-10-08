@@ -412,4 +412,23 @@ getSolicitudesCanjeUsuario(rutUsuario: string): Observable<any[]> {
 cancelarSolicitudCanje(payload: { rut_alumno: string; id_premio: number }): Observable<any> {
   return this.http.post<any>(`${this.apiUrl}/solicitud-canje/cancelar`, payload);
 }
+
+  obtenerActividadesCompletadas(rutUsuario: string): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/alumnos/${rutUsuario}/actividades-completadas`);
+  }
+
+  responderEncuesta(payload: { 
+    id_actividad: number; 
+    id_inscripcion: number; 
+    calificacion: number; 
+    comentario?: string;
+  }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/encuestas`, payload);
+  }
+
+enviarCertificadoCorreo(payload: { rut_usuario: string; id_actividad: number }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/certificados/enviar-correo`, payload);
+  }
+
+ 
 }

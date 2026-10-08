@@ -110,8 +110,44 @@
     }
 
     &.historial-card {
-      opacity: 0.85;
-      filter: grayscale(0.15);
+      opacity: 0.95;
+
+      /* ACCIONES DE BOTONES EN TARJETAS DE HISTORIAL */
+      .acciones-historial {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        ion-button {
+          --border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.8rem;
+          height: 32px;
+        }
+
+        .badge-evaluado {
+          padding: 6px 10px;
+          font-size: 0.8rem;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        /* ESTILOS PARA LAS ESTRELLAS GUARDADAS EN LA TARJETA */
+        .estrellas-guardadas {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+
+          ion-icon {
+            color: #ffc409;
+            font-size: 1.1rem;
+          }
+        }
+      }
     }
   }
 
@@ -137,23 +173,86 @@
       margin: 8px auto 0 auto;
     }
   }
+
   .card-footer-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 
-  .lugar-txt {
-    margin: 0;
-    font-size: 0.85rem;
-  }
+    .lugar-txt {
+      margin: 0;
+      font-size: 0.85rem;
+    }
 
-  .btn-desinscribir {
-    --padding-start: 4px;
-    --padding-end: 4px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    margin: 0;
-    height: 30px;
+    .btn-desinscribir {
+      --padding-start: 4px;
+      --padding-end: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin: 0;
+      height: 30px;
+    }
   }
 }
+
+/* ESTILOS DEL MODAL DE ENCUESTA (TEMA OSCURO) */
+ion-modal.custom-modal {
+  --background: #1e293b;
+  --border-radius: 16px;
+
+  .modal-toolbar {
+    --background: #1e293b;
+    --color: #ffffff;
+    border-bottom: 1px solid #334155;
+  }
+
+  .modal-content {
+    --background: #1e293b;
+    color: #ffffff;
+
+    h2 {
+      color: #ffffff;
+    }
+
+    /* CONTENEDOR DE ESTRELLAS DE EVALUACIÓN */
+    .estrellas-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0 12px 0;
+
+      .estrella-icon {
+        font-size: 2.5rem;
+        color: #ffc409;
+        cursor: pointer;
+        transition: transform 0.15s ease-in-out;
+
+        &:active {
+          transform: scale(1.25);
+        }
+      }
+    }
+
+    /* INPUT DE TEXTAREA PERSONALIZADO */
+    .input-modal {
+      --background: #0d131d;
+      --color: #ffffff;
+      --placeholder-color: #64748b;
+      border-radius: 12px;
+      padding: 4px 8px;
+      border: 1px solid #334155;
+
+      ion-label {
+        color: #94a3b8 !important;
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+
+      ion-textarea {
+        --padding-start: 0;
+        color: #ffffff;
+      }
+    }
+  }
 }

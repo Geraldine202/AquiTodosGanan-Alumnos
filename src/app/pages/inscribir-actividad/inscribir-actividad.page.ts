@@ -35,6 +35,15 @@ export class InscribirActividadPage implements OnInit {
     this.cargarDatos();
   }
 
+  // Helper para detectar si una actividad está finalizada o cancelada
+  private esActividadFinalizada(act: any): boolean {
+    if (!act) return false;
+    const estadoId = Number(act.id_estado_actividad ?? act.estado_actividad?.id_estado_actividad ?? 1);
+    const desc = (act.estado_actividad?.descripcion || act.estado || '').toLowerCase();
+    
+    return estadoId === 3 || estadoId === 4 || desc.includes('finalizad') || desc.includes('cancelad') || desc.includes('terminad');
+  }
+
   cargarDatos() {
     this.cargando = true;
 
@@ -95,24 +104,36 @@ export class InscribirActividadPage implements OnInit {
 
         const ahora = new Date();
 
+        // FILTRADO ESTRICTO DE ACTIVIDADES DISPONIBLES EN EL ALUMNO
         const actividadesVigentes = listaSede.filter((act: any) => {
+          // Si la actividad ya fue marcada como Finalizada/Cancelada por el Administrador, se oculta inmediatamente
+          if (this.esActividadFinalizada(act)) {
+            return false;
+          }
+
           if (!act.fecha) return true;
 
           const fechaTerminoStr = act.hora_termino 
-            ? `${act.fecha}T${act.hora_termino}` 
-            : `${act.fecha}T23:59:59`;
+            ? `${act.fecha.split('T')[0]}T${act.hora_termino}` 
+            : `${act.fecha.split('T')[0]}T23:59:59`;
 
           const fechaTermino = new Date(fechaTerminoStr);
           return fechaTermino >= ahora;
         });
 
-        // 4. Consultar inscripciones previas del alumno
+        // 4. Consultar inscripciones previas del alumno y calcular puntos según ASISTENCIA
         this.actividadService.getInscripcionesPorAlumno(rutLimpio).subscribe({
           next: (inscripciones: InscripcionDetalle[]) => {
             this.misInscripcionesPrevias = Array.isArray(inscripciones) ? inscripciones : [];
             const idsInscritos = this.misInscripcionesPrevias.map(i => i.id_actividad);
 
-            this.puntajeTotal = this.misInscripcionesPrevias.reduce((acc, curr) => acc + (curr.puntos_ganados || 0), 0);
+            // CÁLCULO DE PUNTAJE REAL:
+            // Solo suma los puntos si la asistencia fue marcada como verdader (asistio / presente)
+            this.puntajeTotal = this.misInscripcionesPrevias.reduce((acc, curr) => {
+              const asistio = Boolean(curr.asistio ?? curr.presente ?? curr.asistencia);
+              const puntos = curr.puntos_ganados || curr.puntos || 0;
+              return acc + (asistio ? puntos : 0);
+            }, 0);
 
             this.actividadesDisponibles = actividadesVigentes.map((act: any) => {
               const cuposDisponibles = act.cupo_actividad?.[0]?.cantidad ?? act.cupos ?? 0;
@@ -156,19 +177,25 @@ export class InscribirActividadPage implements OnInit {
     });
   }
 
-  // --- VALIDACIÓN LOCAL PREVIA EN FRONTEND (Opcional) ---
+  // --- VALIDACIÓN LOCAL DE TRASLAPE DE HORARIO ---
   validarTraslapeLocal(nuevaActividad: any): { traslape: boolean; actividadConflicto?: any } {
     if (!this.misInscripcionesPrevias || this.misInscripcionesPrevias.length === 0) {
       return { traslape: false };
     }
 
-    const fechaNueva = String(nuevaActividad.fecha);
+    const fechaNueva = String(nuevaActividad.fecha).split('T')[0];
     const iniNueva = String(nuevaActividad.hora_inicio || '00:00');
     const finNueva = String(nuevaActividad.hora_termino || '23:59');
 
     for (const item of this.misInscripcionesPrevias) {
       const actInscrita = item.actividad || item;
-      if (actInscrita && String(actInscrita.fecha) === fechaNueva) {
+      
+      // Omitir validación de traslape si la actividad inscrita ya finalizó
+      if (this.esActividadFinalizada(actInscrita)) {
+        continue;
+      }
+
+      if (actInscrita && String(actInscrita.fecha).split('T')[0] === fechaNueva) {
         const iniPrev = String(actInscrita.hora_inicio || '00:00');
         const finPrev = String(actInscrita.hora_termino || '23:59');
 
@@ -181,7 +208,6 @@ export class InscribirActividadPage implements OnInit {
   }
 
   async confirmarInscripcion(actividad: any) {
-    // Chequeo previo local
     const conflictoLocal = this.validarTraslapeLocal(actividad);
     if (conflictoLocal.traslape) {
       const conf = conflictoLocal.actividadConflicto;
@@ -256,7 +282,6 @@ export class InscribirActividadPage implements OnInit {
           ? err.error.detail 
           : 'No se pudo procesar la inscripción.';
 
-        // Muestra alerta prominente si es error de validación (400)
         if (err.status === 400) {
           await this.mostrarAlerta('No es posible inscribir', mensajeError);
         } else {
