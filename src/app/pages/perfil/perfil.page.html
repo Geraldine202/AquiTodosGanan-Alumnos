@@ -142,10 +142,69 @@
       </ion-button>
     </form>
 
-    <!-- OPCIONES DE SESIÓN -->
+    <!-- SECCIÓN: CAMBIAR CONTRASEÑA -->
     <div class="section-title margin-top-section">
-      <h2><ion-icon name="settings-outline" color="primary"></ion-icon> Opciones</h2>
+      <div class="header-flex">
+        <h2><ion-icon name="lock-closed-outline" color="primary"></ion-icon> Seguridad</h2>
+        <ion-button fill="clear" size="small" class="btn-edit" (click)="mostrarCambiarPassword = !mostrarCambiarPassword">
+          <ion-icon slot="start" [name]="mostrarCambiarPassword ? 'close-outline' : 'key-outline'"></ion-icon>
+          {{ mostrarCambiarPassword ? 'Cancelar' : 'Cambiar Contraseña' }}
+        </ion-button>
+      </div>
     </div>
+
+    <!-- TARJETA DESPLEGABLE -->
+    <ion-card *ngIf="mostrarCambiarPassword" class="canje-card margin-bottom-card security-card">
+      <ion-card-header>
+        <ion-card-title>Nueva Contraseña</ion-card-title>
+        <ion-card-subtitle>Ingresa tu nueva clave de acceso para actualizarla</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <form (ngSubmit)="cambiarPassword()">
+          <ion-list lines="none" class="info-list">
+
+            <!-- NUEVA CONTRASEÑA CON OJITO -->
+            <ion-item class="info-item">
+              <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
+              <ion-input 
+                label="Nueva Contraseña" 
+                labelPlacement="stacked" 
+                [type]="verNuevaPassword ? 'text' : 'password'" 
+                [(ngModel)]="passwordForm.nueva_password" 
+                name="nueva_password" 
+                placeholder="Mínimo 6 caracteres">
+              </ion-input>
+              <ion-button fill="clear" slot="end" class="eye-btn" (click)="toggleVerNuevaPassword()" type="button">
+                <ion-icon slot="icon-only" [name]="verNuevaPassword ? 'eye-off-outline' : 'eye-outline'" color="medium"></ion-icon>
+              </ion-button>
+            </ion-item>
+
+            <!-- CONFIRMAR NUEVA CONTRASEÑA CON OJITO -->
+            <ion-item class="info-item">
+              <ion-icon name="checkmark-done-outline" slot="start" color="medium"></ion-icon>
+              <ion-input 
+                label="Confirmar Nueva Contraseña" 
+                labelPlacement="stacked" 
+                [type]="verConfirmarPassword ? 'text' : 'password'" 
+                [(ngModel)]="passwordForm.confirmar_password" 
+                name="confirmar_password" 
+                placeholder="Repite la nueva clave">
+              </ion-input>
+              <ion-button fill="clear" slot="end" class="eye-btn" (click)="toggleVerConfirmarPassword()" type="button">
+                <ion-icon slot="icon-only" [name]="verConfirmarPassword ? 'eye-off-outline' : 'eye-outline'" color="medium"></ion-icon>
+              </ion-button>
+            </ion-item>
+
+          </ion-list>
+
+          <ion-button expand="block" type="submit" color="primary" class="save-btn ion-margin-top" [disabled]="cambiandoPassword">
+            <ion-spinner *ngIf="cambiandoPassword" name="crescent"></ion-spinner>
+            <span *ngIf="!cambiandoPassword">Guardar Nueva Contraseña</span>
+          </ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
 
     <ion-list class="options-list">
       <ion-item button (click)="cerrarSesion()" detail="false" class="option-item logout-item">

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-
+import { environment } from 'src/environments/environment';
 // ==========================================
 // INTERFACES Y MODELOS (ACTIVIDADES)
 // ==========================================
@@ -430,5 +430,9 @@ enviarCertificadoCorreo(payload: { rut_usuario: string; id_actividad: number }):
     return this.http.post(`${this.apiUrl}/certificados/enviar-correo`, payload);
   }
 
+verificarRecordatoriosActividades(horas: number = 48): Observable<any> {
+  // Ajusta 'this.apiUrl' o 'this.API_URL' según como lo tengas definido arriba en tu servicio
+  return this.http.post(`${this.apiUrl}/notificaciones/verificar-recordatorios-actividades?horas_anticipacion=${horas}`, {});
+}
  
 }

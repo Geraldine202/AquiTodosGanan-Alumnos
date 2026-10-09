@@ -34,6 +34,19 @@ export class PerfilPage implements OnInit {
     telefono: ''
   };
 
+  // Variables para el cambio de contraseña
+  mostrarCambiarPassword: boolean = false;
+  cambiandoPassword: boolean = false;
+  
+  // Controles de visibilidad (ojito)
+  verNuevaPassword: boolean = false;
+  verConfirmarPassword: boolean = false;
+
+  passwordForm = {
+    nueva_password: '',
+    confirmar_password: ''
+  };
+
   constructor(
     private actividadService: ActividadService,
     private alumnoService: AlumnoService,
@@ -50,9 +63,6 @@ export class PerfilPage implements OnInit {
     this.cargarPerfil();
   }
 
-  /**
-   * Normaliza las respuestas provenientes de la API / LocalStorage
-   */
   normalizarUsuario(data: any): any {
     if (!data) return null;
 
@@ -63,11 +73,9 @@ export class PerfilPage implements OnInit {
     u.nombre_completo = u.nombre_completo || u.nombre || alumnoObj.nombre_completo || '';
     u.correo = u.correo || u.email || alumnoObj.correo || '';
     
-    // Extracción de dirección y teléfono
     u.direccion = u.direccion || alumnoObj.direccion || u.direccion_usuario || '';
     u.telefono = u.telefono || alumnoObj.telefono || u.telefono_usuario || '';
 
-    // Imagen / Foto
     u.imagen = u.imagen || u.foto || u.url_foto || alumnoObj.imagen || alumnoObj.foto || null;
 
     u.puntaje_total = u.puntaje_total ?? alumnoObj.puntaje_total ?? 0;
@@ -78,7 +86,6 @@ export class PerfilPage implements OnInit {
   cargarPerfil() {
     this.cargando = true;
 
-    // Intentamos obtener la sesión guardada en LocalStorage o SessionStorage
     const sessionData = localStorage.getItem('usuarioLogueado') || 
                         localStorage.getItem('usuario') || 
                         localStorage.getItem('user') ||
@@ -93,30 +100,23 @@ export class PerfilPage implements OnInit {
           this.usuario = this.normalizarUsuario(objetoLocal);
         }
 
-        // Extraer el RUT del usuario en sesión
         const rut = this.usuario?.rut_usuario || objetoLocal?.rut || objetoLocal?.rut_usuario;
 
         if (rut) {
-          // LLAMADA A TU SERVICIO: getAlumnoByRut
           this.alumnoService.getAlumnoByRut(rut).subscribe({
             next: (res: any) => {
-              // Si la API responde con un contenedor data o directamente el objeto
               const alumnoBD = res?.data || res?.alumno || res;
 
               if (alumnoBD) {
-                // Fusionamos y normalizamos los datos recibidos del Backend
                 this.usuario = this.normalizarUsuario({ ...this.usuario, ...alumnoBD });
 
-                // Sincronizar campos del formulario con los datos reales
                 this.perfilForm.direccion = this.usuario.direccion || '';
                 this.perfilForm.telefono = this.usuario.telefono || '';
 
                 this.calcularNivel(this.usuario.puntaje_total || 0);
 
-                // Sincronizar en localStorage
                 localStorage.setItem('usuarioLogueado', JSON.stringify(this.usuario));
 
-                // Cargar historial de puntos y canjes con el RUT confirmado
                 this.cargarHistorialPuntos(rut);
                 this.cargarMisCanjes(rut);
               }
@@ -207,7 +207,6 @@ export class PerfilPage implements OnInit {
         this.guardando = false;
         this.archivoFoto = null;
         
-        // Volvemos a guardar la sesión actualizada
         localStorage.setItem('usuarioLogueado', JSON.stringify(this.usuario));
         
         this.mostrarToast('Perfil actualizado correctamente', 'success');
@@ -217,6 +216,73 @@ export class PerfilPage implements OnInit {
         this.guardando = false;
         console.error('Error actualizando perfil:', err);
         this.mostrarToast('Ocurrió un error al guardar los cambios', 'danger');
+        this.cdRef.detectChanges();
+      }
+    });
+  }
+
+  /**
+   * Alterna la visibilidad de la nueva contraseña
+   */
+  toggleVerNuevaPassword() {
+    this.verNuevaPassword = !this.verNuevaPassword;
+  }
+
+  /**
+   * Alterna la visibilidad de la confirmación de contraseña
+   */
+  toggleVerConfirmarPassword() {
+    this.verConfirmarPassword = !this.verConfirmarPassword;
+  }
+
+  /**
+   * Cambia la contraseña directamente enviando la nueva clave
+   */
+  cambiarPassword() {
+    const rut = this.usuario?.rut_usuario;
+    if (!rut) {
+      this.mostrarToast('No se encontró el RUT del usuario', 'danger');
+      return;
+    }
+
+    const { nueva_password, confirmar_password } = this.passwordForm;
+
+    if (!nueva_password || !confirmar_password) {
+      this.mostrarToast('Debes ingresar la nueva contraseña y su confirmación', 'warning');
+      return;
+    }
+
+    if (nueva_password !== confirmar_password) {
+      this.mostrarToast('Las contraseñas no coinciden', 'warning');
+      return;
+    }
+
+    if (nueva_password.length < 6) {
+      this.mostrarToast('La contraseña debe tener al menos 6 caracteres', 'warning');
+      return;
+    }
+
+    this.cambiandoPassword = true;
+
+    this.alumnoService.cambiarPasswordPerfil(rut, nueva_password).subscribe({
+      next: (res: any) => {
+        this.cambiandoPassword = false;
+        this.mostrarToast(res.mensaje || 'Contraseña actualizada con éxito', 'success');
+        
+        // Limpiar formulario, resetear ojitos y ocultar sección desplegable
+        this.passwordForm = {
+          nueva_password: '',
+          confirmar_password: ''
+        };
+        this.verNuevaPassword = false;
+        this.verConfirmarPassword = false;
+        this.mostrarCambiarPassword = false;
+        this.cdRef.detectChanges();
+      },
+      error: (err: any) => {
+        this.cambiandoPassword = false;
+        const msg = err.error?.error || 'Error al cambiar la contraseña';
+        this.mostrarToast(msg, 'danger');
         this.cdRef.detectChanges();
       }
     });

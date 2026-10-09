@@ -33,7 +33,6 @@ export class MisActividadesPage implements OnInit {
 
   ngOnInit() {
     this.segmentoSeleccionado = 'proximas';
-    this.cargarMisActividades();
   }
 
   ionViewWillEnter() {
@@ -72,11 +71,12 @@ export class MisActividadesPage implements OnInit {
 cargarMisActividades() {
   this.cargando = true;
 
-  // Priorizar rut_usuario siempre
+  // RESET OBLIGATORIO DE ARREGLOS ANTES DE CUALQUIER PETICIÓN HTTP
+  this.actividadesProximas = [];
+  this.actividadesHistorial = [];
+
   const rutUsuario = localStorage.getItem('rut_usuario');
   const tokenAcceso = localStorage.getItem('token_acceso');
-  
-  // Usar RUT si existe, sino el token
   const rutParam = rutUsuario || tokenAcceso;
 
   if (!rutParam) {
@@ -85,23 +85,29 @@ cargarMisActividades() {
     return;
   }
 
-  this.actividadesProximas = [];
-  this.actividadesHistorial = [];
-
-  // 1. Puntaje
+  // 1. Obtener Puntaje
   this.actividadService.getPuntajeTotal(rutParam).subscribe({
     next: (res: any) => this.puntajeTotal = res?.puntaje ?? 0,
     error: () => this.puntajeTotal = 0
   });
 
-  // 2. Inscripciones principales
+  // 2. Obtener Inscripciones
   this.actividadService.getInscripcionesPorAlumno(rutParam).subscribe({
     next: (inscripciones: any[]) => {
+      // Volvemos a asegurar vaciado por si llegó una respuesta previa tardía
+      this.actividadesProximas = [];
+      this.actividadesHistorial = [];
+
+      const idsProcesados = new Set<number>();
+
       if (Array.isArray(inscripciones)) {
         inscripciones.forEach((inscripcion: any) => {
           const act = inscripcion.actividad || inscripcion;
+          const idAct = act?.id_actividad;
 
-          if (act && (act.id_actividad || act.nombre_actividad)) {
+          if (act && idAct && !idsProcesados.has(idAct)) {
+            idsProcesados.add(idAct);
+
             let lugarNombre = 'Lugar no especificado';
             if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
               lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
@@ -124,6 +130,12 @@ cargarMisActividades() {
               (Array.isArray(inscripcion.encuesta) && inscripcion.encuesta.length > 0) ||
               calificacionVal > 0;
 
+            const estaPresente = Boolean(
+              inscripcion.asistencia === true || 
+              inscripcion.presente === true ||
+              (Array.isArray(act.asistencia_act) && act.asistencia_act.some((a: any) => a.presente === true))
+            );
+
             const objetoActividad = {
               id_actividad: act.id_actividad,
               id_inscripcion: inscripcion.id_inscripcion ?? act.id_inscripcion,
@@ -135,7 +147,7 @@ cargarMisActividades() {
               hora_termino: act.hora_termino,
               puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? 0),
               lugar: lugarNombre,
-              presente: true,
+              presente: estaPresente,
               encuesta_respondida: encuestaRespondida,
               calificacion: calificacionVal
             };
@@ -149,7 +161,6 @@ cargarMisActividades() {
         });
       }
 
-      // Pasar explícitamente el RUT guardado en localStorage
       const rutReal = localStorage.getItem('rut_usuario') || rutParam;
       this.complementarConCompletadas(rutReal);
     },
@@ -160,62 +171,63 @@ cargarMisActividades() {
   });
 }
 
-private complementarConCompletadas(rutOToken: string) {
-  this.actividadService.obtenerActividadesCompletadas(rutOToken).subscribe({
-    next: (completadas: any[]) => {
-      console.log('Actividades completadas desde API:', completadas); // Para depurar en F12
+  private complementarConCompletadas(rutOToken: string) {
+    this.actividadService.obtenerActividadesCompletadas(rutOToken).subscribe({
+      next: (completadas: any[]) => {
+        if (Array.isArray(completadas) && completadas.length > 0) {
+          completadas.forEach((item: any) => {
+            const act = item.actividad || item;
+            const idAct = act.id_actividad;
 
-      if (Array.isArray(completadas) && completadas.length > 0) {
-        completadas.forEach((item: any) => {
-          const act = item.actividad || item;
-          const idAct = act.id_actividad;
+            const coincidenciaProxima = this.actividadesProximas.find((a) => a.id_actividad === idAct);
+            const coincidenciaHistorial = this.actividadesHistorial.find((a) => a.id_actividad === idAct);
 
-          const coincidencia = this.actividadesHistorial.find((a) => a.id_actividad === idAct);
+            const califVal = Number(item.calificacion ?? 0);
+            const esRespondida = Boolean(item.encuesta_respondida) || califVal > 0;
+            const estaPresente = Boolean(item.asistencia === true || item.presente === true);
 
-          const califVal = Number(item.calificacion ?? 0);
-          const esRespondida = Boolean(item.encuesta_respondida) || califVal > 0;
+            if (coincidenciaHistorial) {
+              coincidenciaHistorial.encuesta_respondida = esRespondida;
+              coincidenciaHistorial.calificacion = califVal;
+              coincidenciaHistorial.presente = estaPresente;
+              if (item.id_inscripcion) {
+                coincidenciaHistorial.id_inscripcion = item.id_inscripcion;
+              }
+            } else if (!coincidenciaProxima) {
+              // SOLO AGREGA SI NO ESTÁ NI EN PRÓXIMAS NI EN HISTORIAL
+              let lugarNombre = 'Lugar no especificado';
+              if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
+                lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
+              } else if (act.lugar) {
+                lugarNombre = act.lugar;
+              }
 
-          if (coincidencia) {
-            // Actualización forzada
-            coincidencia.encuesta_respondida = esRespondida;
-            coincidencia.calificacion = califVal;
-            if (item.id_inscripcion) {
-              coincidencia.id_inscripcion = item.id_inscripcion;
+              this.actividadesHistorial.push({
+                id_actividad: act.id_actividad,
+                id_inscripcion: item.id_inscripcion ?? act.id_inscripcion,
+                nombre_actividad: act.nombre_actividad,
+                descripcion: act.descripcion,
+                img_actv: act.img_actv,
+                fecha: act.fecha,
+                hora_inicio: act.hora_inicio,
+                hora_termino: act.hora_termino,
+                puntos: item.puntos_ganados || item.puntos || 0,
+                lugar: lugarNombre,
+                presente: estaPresente,
+                encuesta_respondida: esRespondida,
+                calificacion: califVal
+              });
             }
-          } else {
-            let lugarNombre = 'Lugar no especificado';
-            if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
-              lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
-            } else if (act.lugar) {
-              lugarNombre = act.lugar;
-            }
-
-            this.actividadesHistorial.push({
-              id_actividad: act.id_actividad,
-              id_inscripcion: item.id_inscripcion ?? act.id_inscripcion,
-              nombre_actividad: act.nombre_actividad,
-              descripcion: act.descripcion,
-              img_actv: act.img_actv,
-              fecha: act.fecha,
-              hora_inicio: act.hora_inicio,
-              hora_termino: act.hora_termino,
-              puntos: item.puntos_ganados || item.puntos || 0,
-              lugar: lugarNombre,
-              presente: true,
-              encuesta_respondida: esRespondida,
-              calificacion: califVal
-            });
-          }
-        });
+          });
+        }
+        this.cargando = false;
+      },
+      error: (err: any) => {
+        console.warn('Error al complementar con actividades completadas:', err);
+        this.cargando = false;
       }
-      this.cargando = false;
-    },
-    error: (err: any) => {
-      console.warn('Error al complementar con actividades completadas:', err);
-      this.cargando = false;
-    }
-  });
-}
+    });
+  }
 
   // --- MÉTODOS PARA CERTIFICADOS Y ENCUESTAS ---
 
@@ -265,29 +277,30 @@ private complementarConCompletadas(rutOToken: string) {
     });
   }
 
-descargarCertificado(act: any) {
-  const rutUsuario = localStorage.getItem('rut_usuario');
+  descargarCertificado(act: any) {
+    const rutUsuario = localStorage.getItem('rut_usuario');
 
-  if (!rutUsuario) {
-    console.warn('No se encontró el RUT del usuario para solicitar el certificado');
-    return;
-  }
-
-  const payload = {
-    rut_usuario: rutUsuario,
-    id_actividad: act.id_actividad
-  };
-
-  this.actividadService.enviarCertificadoCorreo(payload).subscribe({
-    next: (res: any) => {
-      console.log('Certificado enviado correctamente:', res);
-      // Aquí puedes mostrar una alerta de éxito
-    },
-    error: (err: any) => {
-      console.error('Error al enviar el certificado:', err);
+    if (!rutUsuario) {
+      console.warn('No se encontró el RUT del usuario para solicitar el certificado');
+      return;
     }
-  });
-}
+
+    const payload = {
+      rut_usuario: rutUsuario,
+      id_actividad: act.id_actividad
+    };
+
+    this.actividadService.enviarCertificadoCorreo(payload).subscribe({
+      next: (res: any) => {
+        console.log('Certificado enviado correctamente:', res);
+        this.mostrarToast('Certificado enviado a tu correo.', 'success');
+      },
+      error: (err: any) => {
+        console.error('Error al enviar el certificado:', err);
+        this.mostrarToast('Error al enviar el certificado.', 'danger');
+      }
+    });
+  }
 
   private async mostrarToast(mensaje: string, color: string = 'primary') {
     const toast = await this.toastController.create({

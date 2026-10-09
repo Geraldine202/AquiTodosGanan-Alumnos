@@ -107,6 +107,13 @@ export class AlumnoService {
       })
     );
   }
+cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<any> {
+  const body = {
+    rut_usuario,
+    nueva_password
+  };
+  return this.http.put(`${this.baseUrl}/auth/cambiar-password-perfil`, body);
+}
 
   deleteAlumno(rut: string) {
     // Elimina los puntos del RUT dejando solo números y dígito verificador (ej: "22222222-2")

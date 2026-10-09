@@ -19,6 +19,7 @@ export class HomePage implements OnInit {
   colorNivel: string = 'tertiary';
 
   actividadesSlides: any[] = [];
+  actividadesProximas: any[] = []; // <-- PROPIEDAD PARA EL BANNER DE ACTIVIDADES PRÓXIMAS
   totalActividades: number = 0;
   totalPremios: number = 0;
 
@@ -33,13 +34,56 @@ export class HomePage implements OnInit {
     this.cargarDatosUsuario();
     this.cargarActividades();
     this.cargarPremios();
+    this.ejecutarRecordatoriosControlado();
   }
 
   ionViewWillEnter() {
     this.cargarDatosUsuario();
   }
 
-cargarDatosUsuario() {
+
+  cargarProximasActividades(rutAlumno: string) {
+    if (!rutAlumno) return;
+
+    this.actividadService.obtenerInscripcionesPorUsuario(rutAlumno).subscribe({
+      next: (res: any) => {
+        const inscripciones = Array.isArray(res) ? res : (res?.data || []);
+        const ahora = new Date();
+        const limite48h = new Date(ahora.getTime() + (48 * 60 * 60 * 1000));
+
+        this.actividadesProximas = inscripciones.filter((item: any) => {
+          const act = item.actividad;
+          if (!act || !act.fecha) return false;
+
+          const fechaAct = new Date(`${act.fecha}T${act.hora_inicio || '00:00:00'}`);
+          return fechaAct >= ahora && fechaAct <= limite48h;
+        });
+
+        this.cdRef.detectChanges();
+      },
+      error: (err: any) => {
+        console.warn('No se pudieron obtener inscripciones del alumno para el banner:', err);
+      }
+    });
+  }
+  ejecutarRecordatoriosControlado() {
+    const ULTIMA_CHECK = 'last_recordatorios_check';
+    const ultimoRegistro = localStorage.getItem(ULTIMA_CHECK);
+    const ahora = new Date().getTime();
+    const UNA_HORA_MS = 60 * 60 * 1000;
+
+    if (!ultimoRegistro || (ahora - Number(ultimoRegistro)) > UNA_HORA_MS) {
+      this.actividadService.verificarRecordatoriosActividades(48).subscribe({
+        next: (res) => {
+          console.log('[RECORDATORIOS] Verificación realizada:', res);
+          localStorage.setItem(ULTIMA_CHECK, ahora.toString());
+        },
+        error: (err) => console.warn('[RECORDATORIOS] Error silencioso al verificar:', err)
+      });
+    }
+  }
+
+  cargarDatosUsuario() {
     console.log('--- BUSCANDO SESIÓN EN STORAGE ---');
     
     const possibleKeys = [
@@ -74,9 +118,14 @@ cargarDatosUsuario() {
           const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || objetoUsuario.nombre_usuario || objetoUsuario.username || 'prueba';
           this.nombreAlumno = nombre.trim().split(' ')[0];
           this.estaLogueado = true;
-          // Carga inicial rápida con lo que haya en storage
           this.misPuntos = objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? 0;
           this.calcularNivel(this.misPuntos);
+
+          // Cargar avisos visuales desde el RUT en storage
+          const rutTemp = objetoUsuario.rut_usuario || objetoUsuario.rut;
+          if (rutTemp) {
+            this.cargarProximasActividades(rutTemp);
+          }
         } else {
           this.estaLogueado = true;
           this.nombreAlumno = sessionData;
@@ -97,11 +146,12 @@ cargarDatosUsuario() {
                 this.misPuntos = userBD.puntaje_total ?? 0;
                 this.calcularNivel(this.misPuntos);
 
-                // =========================================================
-                // CORRECCIÓN CLAVE: Sobrescribir el Storage Local desactualizado
-                // =========================================================
+                // Cargar inscripciones para el banner con el RUT verificado
+                if (userBD.rut_usuario) {
+                  this.cargarProximasActividades(userBD.rut_usuario);
+                }
+
                 if (keyEncontrada) {
-                  // Si el storage guardaba un objeto, lo combinamos con los datos frescos del backend
                   if (objetoUsuario) {
                     const objetoActualizado = { ...objetoUsuario, ...userBD };
                     localStorage.setItem(keyEncontrada, JSON.stringify(objetoActualizado));
@@ -110,7 +160,6 @@ cargarDatosUsuario() {
                   }
                 }
                 
-                // Aseguramos también la clave principal 'usuario'
                 localStorage.setItem('usuario', JSON.stringify(userBD));
               }
               this.cdRef.detectChanges();
@@ -130,10 +179,17 @@ cargarDatosUsuario() {
       console.warn('No se encontró ninguna clave de usuario en el storage.');
       this.estaLogueado = false;
       this.misPuntos = 0;
+      this.actividadesProximas = [];
     }
 
     this.cdRef.detectChanges();
   }
+
+  /**
+   * Consulta las actividades inscritas del estudiante y filtra únicamente las que
+   * ocurrirán en las próximas 48 horas.
+   */
+
 
   calcularNivel(puntos: number) {
     if (puntos >= 500) {
@@ -176,6 +232,7 @@ cargarDatosUsuario() {
     sessionStorage.clear();
     this.estaLogueado = false;
     this.usuarioLogueado = null;
+    this.actividadesProximas = [];
     this.router.navigate(['/login']);
   }
 }

@@ -29,6 +29,38 @@
     </div>
   </div>
 
+  <!-- ==================== BANNER RECORDATORIO ACTIVIDAD PRÓXIMA (48H) ==================== -->
+  <div class="ion-padding-horizontal ion-margin-top" *ngIf="estaLogueado && actividadesProximas && actividadesProximas.length > 0">
+    <ion-card color="warning" class="ion-no-margin shadow-sm border-rounded" style="border-left: 6px solid #d39e00;">
+      <ion-card-header class="ion-padding-bottom" style="padding-top: 12px;">
+        <ion-card-title class="ion-flex ion-align-items-center" style="font-size: 1.05rem; font-weight: 700; gap: 8px; color: #856404;">
+          <ion-icon name="time-outline" style="font-size: 1.4rem; color: #856404;"></ion-icon>
+          ¡Recordatorio! Tienes {{ actividadesProximas.length }} actividad(es) muy cerca
+        </ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content class="ion-padding-top" style="padding-bottom: 12px;">
+        <div *ngFor="let item of actividadesProximas" 
+             class="ion-margin-bottom" 
+             style="background: rgba(255, 255, 255, 0.6); padding: 10px; border-radius: 8px; cursor: pointer;"
+             [routerLink]="['/detalle-actividad', item.actividad?.id_actividad]">
+          
+          <h3 style="font-weight: 700; margin: 0 0 4px 0; color: #222; font-size: 1rem;">
+            {{ item.actividad?.nombre_actividad || 'Actividad Próxima' }}
+          </h3>
+          
+          <p style="margin: 0; font-size: 0.88rem; color: #444;">
+            📅 <strong>Fecha:</strong> {{ item.actividad?.fecha }} | ⏰ <strong>Hora:</strong> {{ item.actividad?.hora_inicio || '00:00' }} hrs.
+          </p>
+          
+          <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: #666;" *ngIf="item.actividad?.lugar_actividad && item.actividad?.lugar_actividad[0]">
+            📍 <strong>Lugar:</strong> {{ item.actividad?.lugar_actividad[0]?.descripcion }}
+          </p>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
   <!-- ==================== ESTADO 2: VISITANTE / NO LOGUEADO ==================== -->
   <ng-template #guestHero>
     <div class="user-hero-card guest-card">
@@ -50,7 +82,7 @@
   </ng-template>
 
   <!-- SECCIÓN CARRUSEL DE ACTIVIDADES -->
-  <div class="section-title ion-padding-horizontal">
+  <div class="section-title ion-padding-horizontal ion-margin-top">
     <h2><ion-icon name="flame-outline" color="danger"></ion-icon> Actividades Destacadas</h2>
   </div>
 
