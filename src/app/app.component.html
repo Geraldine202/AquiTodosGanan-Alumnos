@@ -101,7 +101,15 @@
             <ion-icon name="calendar-outline" slot="start" class="menu-icon"></ion-icon>
             <ion-label class="menu-label notranslate" translate="no">Mis Actividades</ion-label>
           </ion-item>
-
+                    <ion-item 
+            button
+            (click)="cerrarMenu()" 
+            routerLink="/admin-actividades" 
+            routerLinkActive="menu-item-activo"
+            class="menu-item-custom">
+            <ion-icon name="calendar-outline" slot="start" class="menu-icon"></ion-icon>
+            <ion-label class="menu-label notranslate" translate="no">Administrar Actividades</ion-label>
+          </ion-item>
         </ion-list>
 
         <!-- SECCIÓN 3: PUNTOS Y PREMIOS -->

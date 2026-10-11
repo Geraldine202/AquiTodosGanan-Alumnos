@@ -11,35 +11,58 @@ export interface ConteoActividades {
   rut_usuario: string;
   total_actividades: number;
 }
-
+export interface ReprogramarActividadDTO {
+  fecha: string;        // Formato YYYY-MM-DD
+  hora_inicio: string;  // Formato HH:MM:SS
+  hora_termino: string; // Formato HH:MM:SS
+}
 
 /** Payload que el Frontend debe enviar para crear una Actividad según el esquema SQL */
 export interface ActividadPayload {
   nombre_actividad: string;
   descripcion: string;
   responsable_actividad: string;
+  rut_usuario: string;
   id_tipo_actividad: number;
-  id_estado_actividad?: number;
+  id_estado_actividad?: number; // FastAPI asigna 1 por defecto al crear
   id_sede: number;
-  rut_usuario: string; // Rut del creador/responsable
+  fecha: string;        // Formato YYYY-MM-DD
+  hora_inicio: string;  // Formato HH:mm:ss
+  hora_termino: string; // Formato HH:mm:ss
+  puntos: number;
+  cupos: number;
+  lugar: string;
+  requisito?: string;
   img_actv?: string;
-  fecha: string;        // Formato "YYYY-MM-DD"
-  hora_inicio: string;  // Formato "HH:MM:SS"
-  hora_termino: string; // Formato "HH:MM:SS"
-  
-  // Tablas hijas opcionales si el backend las procesa en el mismo endpoint:
-  puntos?: number;     // -> inserta en puntaje_act (cantidad)
-  cupos?: number;      // -> inserta en cupo_actividad (cantidad)
-  lugar?: string;      // -> inserta en lugar_actividad (descripcion)
-  requisito?: string;  // -> inserta en requisito_participacion (descripcion)
 }
-
+export interface Nivel {
+  id_nivel: number;
+  nombre_nivel: string;
+  min_actividades: number;
+}
 /** Payload para inscribir a un alumno en una actividad */
 export interface InscripcionCreate {
   rut_alumno: string; 
   id_actividad: number;
 }
-
+export interface InfoNivelUsuario {
+  id_nivel: number;
+  nombre_nivel: string;
+  total_actividades: number;
+  faltantes_siguiente?: number;
+}
+export interface ResumenListaInscritos {
+  id_actividad: number;
+  nombre_actividad: string;
+  total_inscritos: number;
+  total_asistentes: number;
+  estudiantes: EstudianteInscrito[];
+}
+export interface EstudianteInscrito {
+  rut: string;
+  nombre: string;
+  asistio: boolean;
+}
 /** Respuesta de la API tras una inscripción */
 export interface InscripcionRespuesta {
   mensaje: string;
@@ -66,29 +89,23 @@ export interface InscripcionDetalle {
 }
 
 
-/** Respuesta completa de Actividad enviada por la API (con relaciones) */
-/** Respuesta de Actividad enviada por la API alineada a las tablas SQL */
 export interface ActividadCompleta {
   id_actividad: number;
   nombre_actividad: string;
   descripcion: string;
   responsable_actividad: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_termino: string;
   id_tipo_actividad: number;
   id_estado_actividad: number;
   id_sede: number;
   rut_usuario: string;
   img_actv?: string;
-  fecha: string;
-  hora_inicio: string;
-  hora_termino: string;
-  
-  // Relaciones
-  tipo_actividad?: { id_tipo_actividad: number; descripcion: string };
-  estado_actividad?: { id_estado_actividad: number; descripcion: string };
-  sede?: { id_sede: number; descripcion: string };
+  tipo_actividad?: { descripcion: string };
+  estado_actividad?: { descripcion: string };
+  sede?: { descripcion: string };
   usuario?: { nombre_completo: string; correo: string };
-  
-  // Tablas Hijas (Arrays)
   puntaje_act?: Array<{ id_puntaje: number; cantidad: number; fecha_vencimiento: string }>;
   cupo_actividad?: Array<{ id_cupo: number; cantidad: number }>;
   lugar_actividad?: Array<{ id_lugar_actividad: number; descripcion: string }>;
@@ -200,6 +217,21 @@ export interface SolicitudCanjeRespuesta {
   id_canje: number;
 }
 
+export interface EstudianteAsistencia {
+  rut_usuario: string;
+  presente: boolean;
+}
+export interface AsistenciaPayload {
+  estudiantes?: EstudianteAsistencia[];
+  asistencia?: EstudianteAsistencia[];
+}
+export interface ResumenListaInscritos {
+  id_actividad: number;
+  nombre_actividad: string;
+  total_inscritos: number;
+  total_asistentes: number;
+  estudiantes: EstudianteInscrito[];
+}
 @Injectable({
   providedIn: 'root',
 })
@@ -264,6 +296,9 @@ export class ActividadService {
   getCategoriasPremio(): Observable<CategoriaPremio[]> {
     return this.http.get<CategoriaPremio[]>(`${this.apiUrl}/categorias-premio`);
   }
+    getNiveles(): Observable<Nivel[]> {
+    return this.http.get<Nivel[]>(`${this.apiUrl}/niveles`);
+  }
 
   getSedes(): Observable<CatalogoItem[]> {
     return this.http.get<CatalogoItem[]>(`${this.apiUrl}/sedes`);
@@ -310,8 +345,15 @@ export class ActividadService {
   /**
    * Inscribe a un alumno en una actividad (Valida matrícula, previene duplicados y descuenta cupo)
    */
+    /** Obtiene la lista completa de inscritos y conteo de asistentes */
+  getEstudiantesInscritos(idActividad: number): Observable<ResumenListaInscritos> {
+    return this.http.get<ResumenListaInscritos>(`${this.apiUrl}/actividades/${idActividad}/lista-inscritos`);
+  }
   inscribirAlumno(payload: InscripcionCreate): Observable<InscripcionRespuesta> {
     return this.http.post<InscripcionRespuesta>(`${this.apiUrl}/inscripciones`, payload, this.httpOptions);
+  }
+    getInscritosActividad(idActividad: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/actividades/${idActividad}/inscritos`);
   }
   cancelarInscripcion(rutAlumno: string, idActividad: number) {
   return this.http.delete(`${this.apiUrl}/inscripciones`, {
@@ -321,6 +363,17 @@ export class ActividadService {
     }
   });
 }
+  registrarAsistenciaMasiva(
+    idActividad: number, 
+    estudiantes: EstudianteAsistencia[]
+  ): Observable<{ mensaje: string; actualizados: number }> {
+    return this.http.post<{ mensaje: string; actualizados: number }>(
+      `${this.apiUrl}/actividades/${idActividad}/asistencia`, 
+      { estudiantes },
+      this.httpOptions
+    );
+  }
+
 
   /**
    * Marca la actividad de un alumno como COMPLETADA y le acredita el puntaje en 'puntaje_total'
@@ -429,10 +482,31 @@ cancelarSolicitudCanje(payload: { rut_alumno: string; id_premio: number }): Obse
 enviarCertificadoCorreo(payload: { rut_usuario: string; id_actividad: number }): Observable<any> {
     return this.http.post(`${this.apiUrl}/certificados/enviar-correo`, payload);
   }
-
-verificarRecordatoriosActividades(horas: number = 48): Observable<any> {
-  // Ajusta 'this.apiUrl' o 'this.API_URL' según como lo tengas definido arriba en tu servicio
-  return this.http.post(`${this.apiUrl}/notificaciones/verificar-recordatorios-actividades?horas_anticipacion=${horas}`, {});
-}
+getNotificacionesAlumno(rutOToken: string): Observable<any[]> {
+    const rutFormateado = rutOToken.replace(/\./g, '');
+    return this.http.get<any[]>(
+      `${this.apiUrl}/notificaciones/usuario/${encodeURIComponent(rutFormateado)}`
+    );
+  }
  
+  getNivelUsuario(rutOToken: string): Observable<InfoNivelUsuario> {
+      return this.http.get<InfoNivelUsuario>(`${this.apiUrl}/usuarios/nivel/${rutOToken}`);
+    }
+
+      iniciarActividad(idActividad: number): Observable<any> {
+    return this.http.put(`${this.apiUrl}/actividades/${idActividad}/iniciar`, {});
+  }
+
+  /** Detener / Finalizar actividad manualmente y liquidar puntos */
+  terminarActividad(idActividad: number): Observable<any> {
+    return this.http.put(`${this.apiUrl}/actividades/${idActividad}/terminar`, {});
+  }
+   /** Reprogramar actividad si finalizó sin inscritos */
+  reprogramarActividad(idActividad: number, datos: ReprogramarActividadDTO): Observable<any> {
+    return this.http.put(`${this.apiUrl}/actividades/${idActividad}/reprogramar`, datos);
+  }
+    obtenerInscritos(idActividad: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/actividades/${idActividad}/inscritos`);
+  }
+
 }

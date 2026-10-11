@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular';
-import { ActividadService, SolicitudCanjePayload } from 'src/app/services/actividad';
+import { ActividadService, SolicitudCanjePayload, InfoNivelUsuario } from 'src/app/services/actividad';
 
 @Component({
   selector: 'app-canjear',
@@ -14,10 +14,16 @@ export class CanjearPage implements OnInit {
   misPuntos: number = 0;
   premios: any[] = [];
   solicitudesPendientesIds: number[] = [];
-  
-  // Lista para almacenar los IDs de premios que el usuario ya solicitó, aprobó o retiró
   premiosCanjeadosIds: number[] = [];
   
+  // Información del Nivel del Usuario
+  nivelUsuario: InfoNivelUsuario = {
+    id_nivel: 1,
+    nombre_nivel: 'Bronce',
+    total_actividades: 0,
+    faltantes_siguiente: 4
+  };
+
   cargando: boolean = true;
   usuarioLogueado: any = null;
 
@@ -83,12 +89,14 @@ export class CanjearPage implements OnInit {
 
     console.log('[CANJEAR] RUT detectado en sesión:', rutRaw);
 
-    // 1. Cargar primero las solicitudes para marcar los premios pendientes o ya canjeados
-    this.obtenerSolicitudesPrevias(rutRaw, () => {
-      // 2. Cargar catálogo de premios
-      this.obtenerCatalogoPremios();
+    // 1. CARGA SECUENCIAL: Primero Nivel -> Luego Solicitudes -> Finalmente Catálogo
+    this.obtenerNivelUsuario(rutRaw, () => {
+      this.obtenerSolicitudesPrevias(rutRaw, () => {
+        this.obtenerCatalogoPremios();
+      });
     });
 
+    // 2. Cargar saldo de puntos
     const servicioAny: any = this.actividadService;
     if (typeof servicioAny.getUsuarioSesion === 'function') {
       servicioAny.getUsuarioSesion(identificador).subscribe({
@@ -109,13 +117,37 @@ export class CanjearPage implements OnInit {
   }
 
   /**
-   * Rescata las solicitudes del alumno directamente del Backend.
+   * Obtiene el Nivel Actual directamente del backend (vía asistencias confirmadas)
    */
+  private obtenerNivelUsuario(rutRaw: string, callback?: () => void) {
+    const servicioAny: any = this.actividadService;
+    const rutLimpio = this.limpiarRut(rutRaw) || rutRaw;
+
+    if (typeof servicioAny.getNivelUsuario === 'function') {
+      servicioAny.getNivelUsuario(rutLimpio).subscribe({
+        next: (nivelRes: InfoNivelUsuario) => {
+          if (nivelRes) {
+            this.nivelUsuario = nivelRes;
+            console.log('[CANJEAR] Nivel real del usuario recibido de la BD:', this.nivelUsuario);
+          }
+          if (callback) callback();
+          this.cdRef.detectChanges();
+        },
+        error: (err: any) => {
+          console.warn('[CANJEAR] Error al consultar nivel del usuario:', err);
+          if (callback) callback();
+        }
+      });
+    } else {
+      console.warn('[CANJEAR] La función getNivelUsuario no existe en ActividadService.');
+      if (callback) callback();
+    }
+  }
+
   private obtenerSolicitudesPrevias(rutRaw: string, callback: () => void) {
     const servicioAny: any = this.actividadService;
 
     if (!rutRaw || typeof servicioAny.getSolicitudesCanjeUsuario !== 'function') {
-      console.warn('[CANJEAR] No existe la función getSolicitudesCanjeUsuario en ActividadService');
       this.solicitudesPendientesIds = [];
       this.premiosCanjeadosIds = [];
       callback();
@@ -125,22 +157,18 @@ export class CanjearPage implements OnInit {
     const rutOriginal = String(rutRaw).trim();
     const rutLimpio = this.limpiarRut(rutRaw);
 
-    console.log('[CANJEAR] Consultando solicitudes para RUT:', rutOriginal);
-
     servicioAny.getSolicitudesCanjeUsuario(rutOriginal).subscribe({
       next: (res: any) => {
         let lista = Array.isArray(res) ? res : (res?.data || res?.solicitudes || res?.result || []);
         
         if (lista.length === 0 && rutLimpio && rutLimpio !== rutOriginal) {
-          console.log('[CANJEAR] Reintentando con RUT sin formato:', rutLimpio);
           servicioAny.getSolicitudesCanjeUsuario(rutLimpio).subscribe({
             next: (res2: any) => {
               const lista2 = Array.isArray(res2) ? res2 : (res2?.data || res2?.solicitudes || res2?.result || []);
               this.procesarSolicitudesPendientes(lista2);
               callback();
             },
-            error: (err2: any) => {
-              console.error('[CANJEAR] Error reintento solicitudes:', err2);
+            error: () => {
               this.solicitudesPendientesIds = [];
               this.premiosCanjeadosIds = [];
               callback();
@@ -151,8 +179,7 @@ export class CanjearPage implements OnInit {
           callback();
         }
       },
-      error: (err: any) => {
-        console.error('[CANJEAR] Error al obtener solicitudes:', err);
+      error: () => {
         this.solicitudesPendientesIds = [];
         this.premiosCanjeadosIds = [];
         callback();
@@ -160,10 +187,6 @@ export class CanjearPage implements OnInit {
     });
   }
 
-  /**
-   * Discrimina solicitudes pendientes (1 = Solicitado) y canjes consumidos (2 = Aprobado, 3 = Retirado).
-   * Las solicitudes canceladas (4 = Cancelado) se ignoran intencionalmente para liberar el premio.
-   */
   private procesarSolicitudesPendientes(lista: any[]) {
     this.solicitudesPendientesIds = [];
     this.premiosCanjeadosIds = [];
@@ -175,12 +198,7 @@ export class CanjearPage implements OnInit {
       const descEstado = String(s.descripcion ?? s.estado ?? s.descripcion_estado ?? s.estado_canje?.descripcion ?? '').toUpperCase();
       const idPremio = Number(s.id_premio ?? s.premio_id ?? s.premio?.id_premio ?? 0);
 
-      console.log(`[CANJEAR DB] Evaluando registro -> Premio ID: ${idPremio}, Estado ID: ${idEstado}, Desc: "${descEstado}"`);
-
-      // Estado 1 = 'Solicitado' (Pendiente de aprobación del Admin)
       const esPendiente = (idEstado === 1) || (descEstado.includes('SOLICITAD') && !descEstado.includes('APROBAD'));
-      
-      // Estados 1, 2, 3 = Bloquean el premio para evitar canjes repetidos por alumno
       const esBloqueado = (idEstado === 1 || idEstado === 2 || idEstado === 3);
 
       if (idPremio > 0) {
@@ -192,9 +210,6 @@ export class CanjearPage implements OnInit {
         }
       }
     });
-
-    console.log('[CANJEAR DB] Array final de IDs en estado SOLICITADO:', this.solicitudesPendientesIds);
-    console.log('[CANJEAR DB] Array final de IDs BLOQUEADOS (Máx 1):', this.premiosCanjeadosIds);
   }
 
   private obtenerPuntosUsuario(rut: string) {
@@ -247,9 +262,24 @@ export class CanjearPage implements OnInit {
 
             const costo = Number(item.puntos_requeridos ?? item.costo_puntos ?? 0);
 
-            // Verificación de estados por alumno
+            // Nivel Requerido por el Premio
+            const idNivelRequerido = Number(item.id_nivel ?? item.nivel?.id_nivel ?? 1);
+            const nombreNivelReq = item.nivel?.nombre_nivel || item.nombre_nivel || (idNivelRequerido === 3 ? 'Platino' : idNivelRequerido === 2 ? 'Oro' : 'Bronce');
+
+            // COMPARACIÓN CONTRA EL NIVEL REAL DEL ALUMNO
+            const cumpleNivel = (this.nivelUsuario.id_nivel ?? 1) >= idNivelRequerido;
+
+            // Estados por premio
             const estaPendiente = this.solicitudesPendientesIds.some(id => Number(id) === idPremioNum);
             const yaFueCanjeado = this.premiosCanjeadosIds.some(id => Number(id) === idPremioNum);
+
+            // Determinar color de botón dinámicamente
+            let colorBoton = 'success';
+            if (!cumpleNivel || yaFueCanjeado || stockCalculado <= 0 || this.misPuntos < costo) {
+              colorBoton = 'medium';
+            } else if (estaPendiente) {
+              colorBoton = 'tertiary';
+            }
 
             return {
               id_premio: idPremioNum,
@@ -258,6 +288,10 @@ export class CanjearPage implements OnInit {
               costo_puntos: isNaN(costo) ? 0 : costo,
               stock: isNaN(stockCalculado) ? 0 : stockCalculado,
               imagen: item.imagen || 'assets/logo.png',
+              id_nivel: idNivelRequerido,
+              nombre_nivel: nombreNivelReq,
+              cumple_nivel: cumpleNivel,
+              color_boton: colorBoton,
               estado_visibilidad: esVisible,
               solicitado: estaPendiente,
               ya_canjeado: yaFueCanjeado,
@@ -277,6 +311,11 @@ export class CanjearPage implements OnInit {
   }
 
   async confirmarCanje(premio: any) {
+    if (!premio.cumple_nivel) {
+      await this.mostrarToast(`Requiere Nivel ${premio.nombre_nivel}. Tu nivel actual es ${this.nivelUsuario.nombre_nivel}.`, 'warning');
+      return;
+    }
+
     if (premio.solicitado) {
       await this.mostrarToast('Ya tienes una solicitud pendiente para este premio.', 'warning');
       return;
@@ -299,7 +338,7 @@ export class CanjearPage implements OnInit {
 
     const alert = await this.alertController.create({
       header: 'Solicitar Canje',
-      message: `Enviarás una solicitud para canjear "${premio.nombre}" por ${premio.costo_puntos} puntos.`,
+      message: `Enviarás una solicitud para canjear "${premio.nombre}" por ${premio.costo_puntos} puntos (Nivel ${premio.nombre_nivel}).`,
       buttons: [
         { text: 'Cancelar', role: 'cancel' },
         {
@@ -329,6 +368,7 @@ export class CanjearPage implements OnInit {
           premio.procesando = false;
           premio.solicitado = true;
           premio.ya_canjeado = true;
+          premio.color_boton = 'tertiary';
 
           const idNum = Number(premio.id_premio);
           if (!this.solicitudesPendientesIds.includes(idNum)) {
@@ -338,7 +378,6 @@ export class CanjearPage implements OnInit {
             this.premiosCanjeadosIds.push(idNum);
           }
 
-          // Restar saldo de puntos localmente
           const nuevoSaldo = Math.max(0, this.misPuntos - premio.costo_puntos);
           this.actualizarPuntosLocales(nuevoSaldo);
 
@@ -353,32 +392,9 @@ export class CanjearPage implements OnInit {
           this.cdRef.detectChanges();
         }
       });
-    } else {
-      setTimeout(async () => {
-        premio.procesando = false;
-        premio.solicitado = true;
-        premio.ya_canjeado = true;
-
-        const idNum = Number(premio.id_premio);
-        if (!this.solicitudesPendientesIds.includes(idNum)) {
-          this.solicitudesPendientesIds.push(idNum);
-        }
-        if (!this.premiosCanjeadosIds.includes(idNum)) {
-          this.premiosCanjeadosIds.push(idNum);
-        }
-
-        const nuevoSaldo = Math.max(0, this.misPuntos - premio.costo_puntos);
-        this.actualizarPuntosLocales(nuevoSaldo);
-
-        await this.mostrarToast('¡Solicitud de canje enviada con éxito!', 'success');
-        this.cdRef.detectChanges();
-      }, 1000);
     }
   }
 
-  /**
-   * Confirmación para cancelar solicitud enviada
-   */
   async confirmarCancelacion(premio: any) {
     const alert = await this.alertController.create({
       header: 'Cancelar Solicitud',
@@ -396,9 +412,6 @@ export class CanjearPage implements OnInit {
     await alert.present();
   }
 
-  /**
-   * Procesa la cancelación en Backend/Frontend y reembolsa puntos
-   */
   ejecutarCancelacion(premio: any) {
     premio.procesando = true;
     const rut = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut;
@@ -426,31 +439,19 @@ export class CanjearPage implements OnInit {
           this.cdRef.detectChanges();
         }
       });
-    } else {
-      // Simulación local
-      setTimeout(async () => {
-        premio.procesando = false;
-        this.liberarEstadoPremio(premio);
-        await this.mostrarToast('Solicitud cancelada con éxito.', 'success');
-        this.cdRef.detectChanges();
-      }, 1000);
     }
   }
 
-  /**
-   * Reactiva localmente el premio en pantalla e incrementa los puntos devueltos
-   */
   private liberarEstadoPremio(premio: any) {
     const idNum = Number(premio.id_premio);
 
     premio.solicitado = false;
     premio.ya_canjeado = false;
+    premio.color_boton = 'success';
 
-    // Remover del arreglo de pendientes y canjeados
     this.solicitudesPendientesIds = this.solicitudesPendientesIds.filter(id => Number(id) !== idNum);
     this.premiosCanjeadosIds = this.premiosCanjeadosIds.filter(id => Number(id) !== idNum);
 
-    // Devolver puntos localmente al saldo
     const nuevoSaldo = this.misPuntos + Number(premio.costo_puntos || 0);
     this.actualizarPuntosLocales(nuevoSaldo);
   }

@@ -47,6 +47,10 @@ const routes: Routes = [
   },  {
     path: 'cambiar-clave-primer-login',
     loadChildren: () => import('./pages/cambiar-clave-primer-login/cambiar-clave-primer-login.module').then( m => m.CambiarClavePrimerLoginPageModule)
+  },
+  {
+    path: 'admin-actividades',
+    loadChildren: () => import('./pages/admin-actividades/admin-actividades.module').then( m => m.AdminActividadesPageModule)
   }
 
 

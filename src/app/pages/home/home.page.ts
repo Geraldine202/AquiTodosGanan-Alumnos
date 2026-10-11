@@ -14,12 +14,14 @@ export class HomePage implements OnInit {
   estaLogueado: boolean = false;
   usuarioLogueado: any = null;
   nombreAlumno: string = 'Alumno/a';
+  rutAlumno: string = '';
   misPuntos: number = 0;
   nivelAlumno: string = 'Bronce';
   colorNivel: string = 'tertiary';
 
   actividadesSlides: any[] = [];
-  actividadesProximas: any[] = []; // <-- PROPIEDAD PARA EL BANNER DE ACTIVIDADES PRÓXIMAS
+  actividadesProximas: any[] = []; // Banner de actividades próximas (últimas 48h)
+  notificaciones: any[] = [];        // Lista de notificaciones registradas
   totalActividades: number = 0;
   totalPremios: number = 0;
 
@@ -27,62 +29,22 @@ export class HomePage implements OnInit {
     private alumnoService: AlumnoService,
     private actividadService: ActividadService,
     private router: Router,
-    private cdRef: ChangeDetectorRef
+    private cdRef: ChangeDetectorRef,
   ) { }
 
   ngOnInit() {
     this.cargarDatosUsuario();
     this.cargarActividades();
     this.cargarPremios();
-    this.ejecutarRecordatoriosControlado();
   }
 
   ionViewWillEnter() {
     this.cargarDatosUsuario();
   }
 
-
-  cargarProximasActividades(rutAlumno: string) {
-    if (!rutAlumno) return;
-
-    this.actividadService.obtenerInscripcionesPorUsuario(rutAlumno).subscribe({
-      next: (res: any) => {
-        const inscripciones = Array.isArray(res) ? res : (res?.data || []);
-        const ahora = new Date();
-        const limite48h = new Date(ahora.getTime() + (48 * 60 * 60 * 1000));
-
-        this.actividadesProximas = inscripciones.filter((item: any) => {
-          const act = item.actividad;
-          if (!act || !act.fecha) return false;
-
-          const fechaAct = new Date(`${act.fecha}T${act.hora_inicio || '00:00:00'}`);
-          return fechaAct >= ahora && fechaAct <= limite48h;
-        });
-
-        this.cdRef.detectChanges();
-      },
-      error: (err: any) => {
-        console.warn('No se pudieron obtener inscripciones del alumno para el banner:', err);
-      }
-    });
-  }
-  ejecutarRecordatoriosControlado() {
-    const ULTIMA_CHECK = 'last_recordatorios_check';
-    const ultimoRegistro = localStorage.getItem(ULTIMA_CHECK);
-    const ahora = new Date().getTime();
-    const UNA_HORA_MS = 60 * 60 * 1000;
-
-    if (!ultimoRegistro || (ahora - Number(ultimoRegistro)) > UNA_HORA_MS) {
-      this.actividadService.verificarRecordatoriosActividades(48).subscribe({
-        next: (res) => {
-          console.log('[RECORDATORIOS] Verificación realizada:', res);
-          localStorage.setItem(ULTIMA_CHECK, ahora.toString());
-        },
-        error: (err) => console.warn('[RECORDATORIOS] Error silencioso al verificar:', err)
-      });
-    }
-  }
-
+  /**
+   * Carga la sesión desde LocalStorage/SessionStorage y obtiene los datos actualizados del backend
+   */
   cargarDatosUsuario() {
     console.log('--- BUSCANDO SESIÓN EN STORAGE ---');
     
@@ -121,21 +83,22 @@ export class HomePage implements OnInit {
           this.misPuntos = objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? 0;
           this.calcularNivel(this.misPuntos);
 
-          // Cargar avisos visuales desde el RUT en storage
+          // Obtener RUT e iniciar búsquedas rápidas (GET)
           const rutTemp = objetoUsuario.rut_usuario || objetoUsuario.rut;
           if (rutTemp) {
+            this.rutAlumno = rutTemp;
             this.cargarProximasActividades(rutTemp);
+            this.cargarNotificaciones(rutTemp);
           }
         } else {
           this.estaLogueado = true;
           this.nombreAlumno = sessionData;
         }
 
-        // Consultar al backend la verdad absoluta de la BD
+        // Consultar al backend la verdad absoluta del usuario en BD
         if (identificador) {
           this.actividadService.getUsuarioSesion(identificador).subscribe({
             next: (userBD: any) => {
-              console.log('Respuesta backend usuario:', userBD);
               if (userBD && (userBD.rut_usuario || userBD.nombre_completo)) {
                 this.usuarioLogueado = userBD;
                 this.estaLogueado = true;
@@ -146,9 +109,10 @@ export class HomePage implements OnInit {
                 this.misPuntos = userBD.puntaje_total ?? 0;
                 this.calcularNivel(this.misPuntos);
 
-                // Cargar inscripciones para el banner con el RUT verificado
                 if (userBD.rut_usuario) {
+                  this.rutAlumno = userBD.rut_usuario;
                   this.cargarProximasActividades(userBD.rut_usuario);
+                  this.cargarNotificaciones(userBD.rut_usuario);
                 }
 
                 if (keyEncontrada) {
@@ -180,16 +144,56 @@ export class HomePage implements OnInit {
       this.estaLogueado = false;
       this.misPuntos = 0;
       this.actividadesProximas = [];
+      this.notificaciones = [];
     }
 
     this.cdRef.detectChanges();
   }
 
   /**
-   * Consulta las actividades inscritas del estudiante y filtra únicamente las que
-   * ocurrirán en las próximas 48 horas.
+   * Consulta inscripciones y extrae únicamente las que ocurrirán en las próximas 48 horas (Banner visual)
    */
+  cargarProximasActividades(rutAlumno: string) {
+    if (!rutAlumno) return;
 
+    this.actividadService.obtenerInscripcionesPorUsuario(rutAlumno).subscribe({
+      next: (res: any) => {
+        const inscripciones = Array.isArray(res) ? res : (res?.data || []);
+        const ahora = new Date();
+        const limite48h = new Date(ahora.getTime() + (48 * 60 * 60 * 1000));
+
+        this.actividadesProximas = inscripciones.filter((item: any) => {
+          const act = item.actividad;
+          if (!act || !act.fecha) return false;
+
+          const fechaAct = new Date(`${act.fecha}T${act.hora_inicio || '00:00:00'}`);
+          return fechaAct >= ahora && fechaAct <= limite48h;
+        });
+
+        this.cdRef.detectChanges();
+      },
+      error: (err: any) => {
+        console.warn('No se pudieron obtener inscripciones del alumno para el banner:', err);
+      }
+    });
+  }
+
+  /**
+   * Carga las notificaciones existentes generadas por FastAPI en segundo plano
+   */
+  cargarNotificaciones(rutAlumno: string) {
+    if (!rutAlumno) return;
+
+    this.actividadService.getNotificacionesAlumno(rutAlumno).subscribe({
+      next: (data) => {
+        this.notificaciones = data || [];
+        this.cdRef.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error al cargar notificaciones:', err);
+      }
+    });
+  }
 
   calcularNivel(puntos: number) {
     if (puntos >= 500) {
@@ -233,6 +237,7 @@ export class HomePage implements OnInit {
     this.estaLogueado = false;
     this.usuarioLogueado = null;
     this.actividadesProximas = [];
+    this.notificaciones = [];
     this.router.navigate(['/login']);
   }
 }

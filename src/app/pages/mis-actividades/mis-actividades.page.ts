@@ -69,107 +69,113 @@ export class MisActividadesPage implements OnInit {
   }
 
 cargarMisActividades() {
-  this.cargando = true;
+    this.cargando = true;
 
-  // RESET OBLIGATORIO DE ARREGLOS ANTES DE CUALQUIER PETICIÓN HTTP
-  this.actividadesProximas = [];
-  this.actividadesHistorial = [];
+    // RESET OBLIGATORIO DE ARREGLOS
+    this.actividadesProximas = [];
+    this.actividadesHistorial = [];
 
-  const rutUsuario = localStorage.getItem('rut_usuario');
-  const tokenAcceso = localStorage.getItem('token_acceso');
-  const rutParam = rutUsuario || tokenAcceso;
+    const rutUsuario = localStorage.getItem('rut_usuario');
+    const tokenAcceso = localStorage.getItem('token_acceso');
+    const rutParam = rutUsuario || tokenAcceso;
 
-  if (!rutParam) {
-    console.warn('No se encontró RUT ni token en localStorage');
-    this.cargando = false;
-    return;
-  }
-
-  // 1. Obtener Puntaje
-  this.actividadService.getPuntajeTotal(rutParam).subscribe({
-    next: (res: any) => this.puntajeTotal = res?.puntaje ?? 0,
-    error: () => this.puntajeTotal = 0
-  });
-
-  // 2. Obtener Inscripciones
-  this.actividadService.getInscripcionesPorAlumno(rutParam).subscribe({
-    next: (inscripciones: any[]) => {
-      // Volvemos a asegurar vaciado por si llegó una respuesta previa tardía
-      this.actividadesProximas = [];
-      this.actividadesHistorial = [];
-
-      const idsProcesados = new Set<number>();
-
-      if (Array.isArray(inscripciones)) {
-        inscripciones.forEach((inscripcion: any) => {
-          const act = inscripcion.actividad || inscripcion;
-          const idAct = act?.id_actividad;
-
-          if (act && idAct && !idsProcesados.has(idAct)) {
-            idsProcesados.add(idAct);
-
-            let lugarNombre = 'Lugar no especificado';
-            if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
-              lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
-            } else if (act.lugar) {
-              lugarNombre = act.lugar;
-            }
-
-            const puntosGanados = inscripcion.puntos_ganados ?? 0;
-
-            const calificacionVal = Number(
-              inscripcion.calificacion ?? 
-              act.calificacion ?? 
-              (Array.isArray(inscripcion.encuesta) ? inscripcion.encuesta[0]?.calificacion : inscripcion.encuesta?.calificacion) ?? 
-              0
-            );
-
-            const encuestaRespondida = 
-              inscripcion.encuesta_respondida === true || 
-              act.encuesta_respondida === true || 
-              (Array.isArray(inscripcion.encuesta) && inscripcion.encuesta.length > 0) ||
-              calificacionVal > 0;
-
-            const estaPresente = Boolean(
-              inscripcion.asistencia === true || 
-              inscripcion.presente === true ||
-              (Array.isArray(act.asistencia_act) && act.asistencia_act.some((a: any) => a.presente === true))
-            );
-
-            const objetoActividad = {
-              id_actividad: act.id_actividad,
-              id_inscripcion: inscripcion.id_inscripcion ?? act.id_inscripcion,
-              nombre_actividad: act.nombre_actividad,
-              descripcion: act.descripcion,
-              img_actv: act.img_actv,
-              fecha: act.fecha,
-              hora_inicio: act.hora_inicio,
-              hora_termino: act.hora_termino,
-              puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? 0),
-              lugar: lugarNombre,
-              presente: estaPresente,
-              encuesta_respondida: encuestaRespondida,
-              calificacion: calificacionVal
-            };
-
-            if (this.esActividadFinalizada(act)) {
-              this.actividadesHistorial.push(objetoActividad);
-            } else {
-              this.actividadesProximas.push(objetoActividad);
-            }
-          }
-        });
-      }
-
-      const rutReal = localStorage.getItem('rut_usuario') || rutParam;
-      this.complementarConCompletadas(rutReal);
-    },
-    error: (err: any) => {
-      const rutReal = localStorage.getItem('rut_usuario') || rutParam;
-      this.complementarConCompletadas(rutReal);
+    if (!rutParam) {
+      console.warn('No se encontró RUT ni token en localStorage');
+      this.cargando = false;
+      return;
     }
-  });
-}
+
+    // 1. Obtener Puntaje
+    this.actividadService.getPuntajeTotal(rutParam).subscribe({
+      next: (res: any) => this.puntajeTotal = res?.puntaje ?? 0,
+      error: () => this.puntajeTotal = 0
+    });
+
+    // 2. Obtener Inscripciones
+    this.actividadService.getInscripcionesPorAlumno(rutParam).subscribe({
+      next: (inscripciones: any[]) => {
+        this.actividadesProximas = [];
+        this.actividadesHistorial = [];
+
+        const idsProcesados = new Set<number>();
+
+        if (Array.isArray(inscripciones)) {
+          inscripciones.forEach((inscripcion: any) => {
+            const act = inscripcion.actividad || inscripcion;
+            const idAct = act?.id_actividad;
+
+            if (act && idAct && !idsProcesados.has(idAct)) {
+              idsProcesados.add(idAct);
+
+              let lugarNombre = 'Lugar no especificado';
+              if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
+                lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
+              } else if (act.lugar) {
+                lugarNombre = act.lugar;
+              }
+
+              const puntosGanados = inscripcion.puntos_ganados ?? 0;
+
+              const calificacionVal = Number(
+                inscripcion.calificacion ?? 
+                act.calificacion ?? 
+                (Array.isArray(inscripcion.encuesta) ? inscripcion.encuesta[0]?.calificacion : inscripcion.encuesta?.calificacion) ?? 
+                0
+              );
+
+              const encuestaRespondida = 
+                inscripcion.encuesta_respondida === true || 
+                act.encuesta_respondida === true || 
+                (Array.isArray(inscripcion.encuesta) && inscripcion.encuesta.length > 0) ||
+                calificacionVal > 0;
+
+              // Verificación estricta de asistencia
+              const estaPresente = Boolean(
+                inscripcion.asistencia === true || 
+                inscripcion.presente === true ||
+                (Array.isArray(act.asistencia_act) && act.asistencia_act.some((a: any) => a.presente === true))
+              );
+
+              const objetoActividad = {
+                id_actividad: act.id_actividad,
+                id_inscripcion: inscripcion.id_inscripcion ?? act.id_inscripcion,
+                nombre_actividad: act.nombre_actividad,
+                descripcion: act.descripcion,
+                img_actv: act.img_actv,
+                fecha: act.fecha,
+                hora_inicio: act.hora_inicio,
+                hora_termino: act.hora_termino,
+                puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? 0),
+                lugar: lugarNombre,
+                presente: estaPresente,
+                encuesta_respondida: encuestaRespondida,
+                calificacion: calificacionVal
+              };
+
+              const finalizada = this.esActividadFinalizada(act);
+
+              // REGLA CLAVE: Al historial SOLO van las finalizadas DONDE estuvo presente
+              if (finalizada) {
+                if (estaPresente) {
+                  this.actividadesHistorial.push(objetoActividad);
+                }
+                // Si la actividad finalizó pero NO estuvo presente, no se agrega a 'actividadesHistorial'
+              } else {
+                this.actividadesProximas.push(objetoActividad);
+              }
+            }
+          });
+        }
+
+        const rutReal = localStorage.getItem('rut_usuario') || rutParam;
+        this.complementarConCompletadas(rutReal);
+      },
+      error: (err: any) => {
+        const rutReal = localStorage.getItem('rut_usuario') || rutParam;
+        this.complementarConCompletadas(rutReal);
+      }
+    });
+  }
 
   private complementarConCompletadas(rutOToken: string) {
     this.actividadService.obtenerActividadesCompletadas(rutOToken).subscribe({
@@ -193,8 +199,8 @@ cargarMisActividades() {
               if (item.id_inscripcion) {
                 coincidenciaHistorial.id_inscripcion = item.id_inscripcion;
               }
-            } else if (!coincidenciaProxima) {
-              // SOLO AGREGA SI NO ESTÁ NI EN PRÓXIMAS NI EN HISTORIAL
+            } else if (!coincidenciaProxima && estaPresente) {
+              // SOLO SE AGREGA SI ESTUVO PRESENTE Y NO ESTÁ EN PRÓXIMAS
               let lugarNombre = 'Lugar no especificado';
               if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
                 lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
@@ -213,7 +219,7 @@ cargarMisActividades() {
                 hora_termino: act.hora_termino,
                 puntos: item.puntos_ganados || item.puntos || 0,
                 lugar: lugarNombre,
-                presente: estaPresente,
+                presente: true,
                 encuesta_respondida: esRespondida,
                 calificacion: califVal
               });
@@ -228,7 +234,6 @@ cargarMisActividades() {
       }
     });
   }
-
   // --- MÉTODOS PARA CERTIFICADOS Y ENCUESTAS ---
 
   abrirModalEncuesta(actividad: any, modal: IonModal) {
