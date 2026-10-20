@@ -3,7 +3,7 @@
 <ion-content class="custom-content ion-padding">
   <div class="main-wrapper">
     
-    <!-- Encabezado superior fuera de la tarjeta -->
+    <!-- Encabezado superior -->
     <div class="header-container ion-text-center">
       <div class="icon-circle">
         <ion-icon name="lock-closed-outline" class="lock-icon"></ion-icon>
@@ -16,9 +16,7 @@
     </div>
     <br>
     <br>
-    <br>
-    <br>
-
+    <br><br><br><br>
     <!-- Tarjeta del Formulario -->
     <ion-card class="form-card">
       <ion-card-content>
@@ -31,12 +29,40 @@
             <ion-input 
               [type]="mostrarNuevaClave ? 'text' : 'password'" 
               [(ngModel)]="datosClave.nuevaPassword" 
+              (ionInput)="validarPasswordEnVivo()"
               placeholder="Ingresa tu nueva contraseña">
             </ion-input>
             <ion-button fill="clear" class="btn-eye" (click)="toggleNuevaClave()">
               <ion-icon slot="icon-only" [name]="mostrarNuevaClave ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
             </ion-button>
           </div>
+        </div>
+
+        <!-- Indicadores visuales de requisitos de seguridad en vivo -->
+        <div class="requisitos-container ion-margin-top">
+          <p class="requisitos-title">Requisitos de la contraseña:</p>
+          <ul class="lista-requisitos">
+            <li [class.cumplido]="requisitosPass.longitud">
+              <ion-icon [name]="requisitosPass.longitud ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Mínimo 8 caracteres
+            </li>
+            <li [class.cumplido]="requisitosPass.mayuscula">
+              <ion-icon [name]="requisitosPass.mayuscula ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos una letra mayúscula (A-Z)
+            </li>
+            <li [class.cumplido]="requisitosPass.minuscula">
+              <ion-icon [name]="requisitosPass.minuscula ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos una letra minúscula (a-z)
+            </li>
+            <li [class.cumplido]="requisitosPass.numero">
+              <ion-icon [name]="requisitosPass.numero ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos un número (0-9)
+            </li>
+            <li [class.cumplido]="requisitosPass.especial">
+              <ion-icon [name]="requisitosPass.especial ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos un carácter especial (ej: @, #, $, !, %, *)
+            </li>
+          </ul>
         </div>
 
         <!-- Campo 2: Confirmar Nueva Contraseña -->
@@ -59,15 +85,16 @@
         <ion-button 
           expand="block" 
           shape="round" 
-          class="submit-btn" 
+          class="submit-btn ion-margin-top" 
+          [disabled]="guardando"
           (click)="guardarNuevaClave()">
-          GUARDAR Y CONTINUAR
-          <ion-icon name="chevron-forward-outline" slot="end"></ion-icon>
+          {{ guardando ? 'GUARDANDO...' : 'GUARDAR Y CONTINUAR' }}
+          <ion-icon name="chevron-forward-outline" slot="end" *ngIf="!guardando"></ion-icon>
         </ion-button>
 
       </ion-card-content>
     </ion-card>
 
   </div>
-   <app-footer></app-footer>
+  <app-footer></app-footer>
 </ion-content>

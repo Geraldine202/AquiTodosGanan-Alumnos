@@ -45,7 +45,6 @@ export class AlumnoService {
   // ESTADO REACTIVO DE SESIÓN
   private usuarioSubject = new BehaviorSubject<any>(this.obtenerUsuarioSesion());
   public usuario$ = this.usuarioSubject.asObservable();
-
   constructor(private http: HttpClient) { }
 
   // ==========================================
@@ -240,21 +239,6 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
     }
   }
 
-  obtenerUsuarioSesion(): any {
-    const user = localStorage.getItem('usuarioLogueado');
-
-    if (!user || user === 'undefined' || user === 'null') {
-      return null;
-    }
-
-    try {
-      return JSON.parse(user);
-    } catch (error) {
-      console.error('Error al parsear el usuario de la sesión:', error);
-      this.limpiarSesionLocal();
-      return null;
-    }
-  }
 
   obtenerToken(): string | null {
     return localStorage.getItem('tokenAcceso');
@@ -280,4 +264,22 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
   cerrarSesion() {
     this.logout().subscribe();
   }
+  obtenerUsuarioSesion(): any {
+    const sessionData = localStorage.getItem('usuarioLogueado') || 
+                        localStorage.getItem('usuario') || 
+                        localStorage.getItem('user');
+    if (sessionData) {
+      try {
+        return typeof sessionData === 'string' && sessionData.trim().startsWith('{') 
+               ? JSON.parse(sessionData) 
+               : sessionData;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+  notificarCambioUsuario(usuario: any) {
+      this.usuarioSubject.next(usuario);
+    }
 }

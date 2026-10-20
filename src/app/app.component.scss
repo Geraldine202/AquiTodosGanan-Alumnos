@@ -1,85 +1,137 @@
 /* ===== MENU DUOC PRO ===== */
 
 ion-menu {
-  --background: #111;
-  --color: white;
+  --background: #00172b;
+  --color: #ffffff;
 }
 
-ion-menu ion-content {
-  --background: #111;
+ion-menu ion-content.menu-content {
+  --background: #00172b;
 }
 
-ion-menu ion-toolbar {
-  --background: #111;
-  --color: white;
+/* ENCABEZADO CON DEGRADADO Y LOGO */
+ion-menu ion-toolbar.menu-toolbar {
+  --background: #001e36;
+  background: linear-gradient(135deg, #001e36 0%, #001122 100%);
+  padding: 16px 12px 12px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  .brand-container {
+    height: 90px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    .brand-logo {
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+    }
+  }
 }
 
-ion-menu ion-title {
-  color: white;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+/* CUERPO Y CONTENEDOR */
+.menu-body {
+  padding: 12px 8px;
 }
 
-ion-menu ion-list {
+/* TÍTULOS DE SECCIONES */
+.menu-section-title {
+  color: #38bdf8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  padding: 0 12px;
+  margin: 16px 0 6px 0;
+
+  &:first-of-type {
+    margin-top: 6px;
+  }
+}
+
+ion-menu ion-list.menu-list {
   background: transparent;
-  padding: 12px 0;
+  padding: 0;
 }
 
-/* items */
-ion-menu ion-item {
+/* ITEMS BASE DEL MENÚ */
+ion-menu ion-item.menu-item-custom {
   --background: transparent;
-  --color: white;
-  --padding-start: 16px;
-  --padding-end: 16px;
-  --min-height: 48px;
-  border-radius: 12px;
-  margin: 4px 10px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  --color: #cbd5e1;
+  --padding-start: 14px;
+  --padding-end: 14px;
+  --min-height: 46px;
+  border-radius: 10px;
+  margin: 3px 6px;
+  transition: transform 0.2s ease, background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  animation: slideInMenu 0.28s ease;
+
+  ion-icon.menu-icon {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1.25rem;
+    margin-right: 12px;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  ion-label.menu-label {
+    font-weight: 500;
+    font-size: 0.88rem;
+  }
+
+  /* HOVER */
+  &:hover {
+    --background: rgba(255, 255, 255, 0.06);
+    --color: #ffffff;
+    transform: translateX(4px);
+
+    ion-icon.menu-icon {
+      color: #38bdf8;
+    }
+  }
 }
 
-/* iconos */
-ion-menu ion-item ion-icon {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 20px;
-  transition: transform 0.2s ease, color 0.2s ease;
-}
-
-/* texto */
-ion-menu ion-item ion-label {
-  font-weight: 500;
-}
-
-/* hover */
-ion-menu ion-item:hover {
-  --background: rgba(255, 255, 255, 0.06);
-  transform: translateX(4px);
-}
-
-/* item activo iluminado */
-ion-menu ion-item.selected {
+/* ITEM ACTIVO (ILUMINADO NARANJA DUOC) */
+ion-menu ion-item.menu-item-activo {
   --background: rgba(245, 130, 32, 0.16);
   --color: #ffffff;
+  font-weight: 600;
   box-shadow: 0 0 0 1px rgba(245, 130, 32, 0.25),
               0 0 14px rgba(245, 130, 32, 0.18);
+
+  ion-icon.menu-icon {
+    color: #f58220;
+    transform: scale(1.08);
+  }
 }
 
-ion-menu ion-item.selected ion-icon {
-  color: #f58220;
-  transform: scale(1.08);
+/* PIE DE PÁGINA INSTITUCIONAL */
+ion-menu ion-footer.menu-footer {
+  background: #001122;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 16px;
+
+  .footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #64748b;
+    font-size: 0.72rem;
+
+    .badge-version {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+  }
 }
 
-/* headers secundarios */
-ion-menu ion-note,
-ion-menu ion-list-header {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-/* animación de entrada del menú */
-ion-menu ion-item {
-  animation: slideInMenu 0.28s ease;
-}
-
+/* ANIMACIÓN DE ENTRADA */
 @keyframes slideInMenu {
   from {
     opacity: 0;

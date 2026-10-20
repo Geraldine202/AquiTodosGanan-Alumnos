@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { AlertController, LoadingController, NavController } from '@ionic/angular';
 import { AlumnoService } from 'src/app/services/alumno';
 
@@ -17,15 +17,28 @@ export class CambiarClavePrimerLoginPage implements OnInit {
 
   mostrarNuevaClave: boolean = false;
   mostrarConfirmarClave: boolean = false;
+  guardando: boolean = false;
+
+  // Estado de evaluación de las 5 reglas de seguridad
+  requisitosPass = {
+    longitud: false,
+    mayuscula: false,
+    minuscula: false,
+    numero: false,
+    especial: false
+  };
 
   constructor(
     private alumnoService: AlumnoService,
     private navCtrl: NavController,
     private loadingController: LoadingController,
-    private alertController: AlertController
+    private alertController: AlertController,
+    private cdRef: ChangeDetectorRef
   ) { }
 
-  ngOnInit() { }
+  ngOnInit() {
+    this.validarPasswordEnVivo();
+  }
 
   toggleNuevaClave() {
     this.mostrarNuevaClave = !this.mostrarNuevaClave;
@@ -33,6 +46,32 @@ export class CambiarClavePrimerLoginPage implements OnInit {
 
   toggleConfirmarClave() {
     this.mostrarConfirmarClave = !this.mostrarConfirmarClave;
+  }
+
+  /**
+   * Evalúa las reglas de seguridad en tiempo real a medida que escribe el usuario
+   */
+  validarPasswordEnVivo() {
+    const pass = this.datosClave.nuevaPassword || '';
+
+    this.requisitosPass.longitud = pass.length >= 8;
+    this.requisitosPass.mayuscula = /[A-Z]/.test(pass);
+    this.requisitosPass.minuscula = /[a-z]/.test(pass);
+    this.requisitosPass.numero = /\d/.test(pass);
+    this.requisitosPass.especial = /[@$!%*?&#.\-_/*+]/.test(pass);
+
+    this.cdRef.detectChanges();
+  }
+
+  /**
+   * Retorna true si se cumplen los 5 requisitos de contraseña
+   */
+  private esPasswordValida(): boolean {
+    return this.requisitosPass.longitud &&
+           this.requisitosPass.mayuscula &&
+           this.requisitosPass.minuscula &&
+           this.requisitosPass.numero &&
+           this.requisitosPass.especial;
   }
 
   async guardarNuevaClave() {
@@ -43,21 +82,31 @@ export class CambiarClavePrimerLoginPage implements OnInit {
       return;
     }
 
+    if (!this.esPasswordValida()) {
+      this.mostrarAlerta(
+        'Contraseña insegura', 
+        'La nueva contraseña debe cumplir con todos los requisitos mínimos de seguridad (8+ caracteres, mayúscula, minúscula, número y carácter especial).'
+      );
+      return;
+    }
+
     if (nuevaPassword !== confirmarPassword) {
       this.mostrarAlerta('Error de coincidencia', 'Las contraseñas ingresadas no coinciden.');
       return;
     }
 
-    if (nuevaPassword.length < 6) {
-      this.mostrarAlerta('Contraseña débil', 'La nueva contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
+    // LEER DESDE sessionStorage EN LUGAR DE localStorage
+    const rutUsuario = sessionStorage.getItem('rut_usuario') || 
+                       JSON.parse(sessionStorage.getItem('usuario') || '{}')?.rut_usuario ||
+                       JSON.parse(sessionStorage.getItem('usuarioLogueado') || '{}')?.rut_usuario;
 
-    const rutUsuario = localStorage.getItem('rut_usuario');
     if (!rutUsuario) {
+      this.mostrarAlerta('Sesión no encontrada', 'No se encontró la información de tu usuario. Por favor vuelve a ingresar.');
       this.navCtrl.navigateRoot('/login');
       return;
     }
+
+    this.guardando = true;
 
     const loading = await this.loadingController.create({
       message: 'Actualizando contraseña...',
@@ -67,15 +116,21 @@ export class CambiarClavePrimerLoginPage implements OnInit {
 
     this.alumnoService.cambiarPasswordObligatorio(rutUsuario, nuevaPassword).subscribe({
       next: async () => {
+        this.guardando = false;
         await loading.dismiss();
         
-        // Actualizar almacenamiento local
-        const usuarioLocalStr = localStorage.getItem('usuario');
-        if (usuarioLocalStr) {
-          const usuarioLocal = JSON.parse(usuarioLocalStr);
-          usuarioLocal.cambio_clave_obligatorio = false;
-          localStorage.setItem('usuario', JSON.stringify(usuarioLocal));
-        }
+        // Actualizar la sesión en sessionStorage desactivando la bandera obligatoria
+        const clavesSession = ['usuario', 'usuarioLogueado', 'user'];
+        clavesSession.forEach(key => {
+          const str = sessionStorage.getItem(key);
+          if (str) {
+            try {
+              const obj = JSON.parse(str);
+              obj.cambio_clave_obligatorio = false;
+              sessionStorage.setItem(key, JSON.stringify(obj));
+            } catch (e) {}
+          }
+        });
 
         const alert = await this.alertController.create({
           header: '¡Contraseña Actualizada!',
@@ -90,9 +145,10 @@ export class CambiarClavePrimerLoginPage implements OnInit {
         await alert.present();
       },
       error: async (err: any) => {
+        this.guardando = false;
         await loading.dismiss();
         console.error('Error al cambiar contraseña:', err);
-        const msg = err.error?.error || 'No se pudo actualizar la contraseña. Revisa la conexión.';
+        const msg = err.error?.error || err.error?.detail || err.error?.message || 'No se pudo actualizar la contraseña. Revisa la conexión.';
         this.mostrarAlerta('Error', msg);
       }
     });

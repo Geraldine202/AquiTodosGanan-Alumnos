@@ -214,22 +214,28 @@
         position: relative;
         width: 100%;
         height: 100%;
+        background: #0f172a; // Fondo oscuro para rellenar los bordes libres
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain; // Asegura que la imagen se vea completa sin cortes
+          padding: 6px;
         }
 
         .slide-overlay {
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, rgba(0, 0, 0, 0) 25%, rgba(15, 23, 42, 0.9) 100%);
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(15, 23, 42, 0.92) 100%);
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
           padding: 16px;
           color: #ffffff;
+          pointer-events: none; // Permite el clic a través del overlay
 
           .points-badge {
             align-self: flex-start;
@@ -239,6 +245,7 @@
             margin-bottom: 6px;
             padding: 5px 10px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            pointer-events: auto;
           }
 
           h3 {

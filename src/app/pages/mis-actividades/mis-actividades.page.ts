@@ -1,6 +1,8 @@
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { AlertController, ToastController, IonModal } from '@ionic/angular';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { AlertController, ToastController, LoadingController, IonModal } from '@ionic/angular';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { ActividadService } from 'src/app/services/actividad';
 
 @Component({
@@ -9,7 +11,7 @@ import { ActividadService } from 'src/app/services/actividad';
   styleUrls: ['./mis-actividades.page.scss'],
   standalone: false,
 })
-export class MisActividadesPage implements OnInit {
+export class MisActividadesPage implements OnInit, OnDestroy {
   segmentoSeleccionado: string = 'proximas';
   cargando: boolean = true;
 
@@ -24,23 +26,87 @@ export class MisActividadesPage implements OnInit {
   comentarioEncuesta: string = '';
   enviandoEncuesta: boolean = false;
 
+  private routerSub!: Subscription;
+
   constructor(
     private actividadService: ActividadService,
     private alertController: AlertController,
     private toastController: ToastController,
-    private router: Router
+    private loadingController: LoadingController,
+    private router: Router,
+    private cdRef: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
     this.segmentoSeleccionado = 'proximas';
+
+    // Escucha la navegación para refrescar automáticamente sin F5
+    this.routerSub = this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: any) => {
+      if (event.urlAfterRedirects.includes('/mis-actividades')) {
+        this.cargarMisActividades();
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.routerSub) {
+      this.routerSub.unsubscribe();
+    }
   }
 
   ionViewWillEnter() {
-    this.segmentoSeleccionado = 'proximas';
     this.cargarMisActividades();
   }
 
-  // Helper para determinar si la actividad finalizó
+  /**
+   * Refresco por deslizamiento ("Pull to Refresh")
+   */
+  doRefresh(event: any) {
+    this.cargarMisActividades(event);
+  }
+
+  /**
+   * Obtiene el RUT o identificador del usuario buscando únicamente en sessionStorage
+   */
+  private obtenerRutSesion(): string {
+    const keys = ['rut_usuario', 'usuarioLogueado', 'usuario', 'user', 'currentUser', 'token_acceso'];
+    
+    for (const key of keys) {
+      const val = sessionStorage.getItem(key);
+      if (val) {
+        if (typeof val === 'string' && val.trim().startsWith('{')) {
+          try {
+            const obj = JSON.parse(val);
+            const rut = obj.rut_usuario || obj.rut || obj.rut_alumno || obj.correo;
+            if (rut) return String(rut).replace(/\./g, '').trim();
+          } catch (e) {}
+        } else {
+          return String(val).replace(/\./g, '').trim();
+        }
+      }
+    }
+    return '';
+  }
+
+  private obtenerCorreoEstudiante(): string {
+    const sessionData = sessionStorage.getItem('usuarioLogueado') || 
+                        sessionStorage.getItem('usuario') || 
+                        sessionStorage.getItem('user');
+    if (sessionData) {
+      try {
+        const obj = typeof sessionData === 'string' && sessionData.trim().startsWith('{')
+          ? JSON.parse(sessionData)
+          : sessionData;
+        return obj?.correo || obj?.email || obj?.alumno?.correo || '';
+      } catch (e) {
+        console.error('Error parseando correo de usuario:', e);
+      }
+    }
+    return '';
+  }
+
   private esActividadFinalizada(act: any): boolean {
     if (!act) return false;
 
@@ -53,45 +119,48 @@ export class MisActividadesPage implements OnInit {
 
     const ahora = new Date();
     let fechaFin: Date;
-    if (act.fecha_termino) {
-      fechaFin = new Date(act.fecha_termino);
-    } else if (act.fecha && act.hora_termino) {
-      const fechaBase = String(act.fecha).split('T')[0].replace(/-/g, '/');
-      fechaFin = new Date(`${fechaBase} ${act.hora_termino}`);
-    } else if (act.fecha) {
-      const fechaBase = String(act.fecha).split('T')[0].replace(/-/g, '/');
-      fechaFin = new Date(`${fechaBase} 23:59:59`);
-    } else {
+    
+    try {
+      if (act.fecha_termino) {
+        fechaFin = new Date(act.fecha_termino);
+      } else if (act.fecha) {
+        const fechaLimpia = String(act.fecha).split('T')[0];
+        const horaFin = act.hora_termino ? act.hora_termino : '23:59:59';
+        fechaFin = new Date(`${fechaLimpia}T${horaFin}`);
+      } else {
+        return false;
+      }
+
+      return !isNaN(fechaFin.getTime()) && fechaFin < ahora;
+    } catch (e) {
       return false;
     }
-
-    return fechaFin < ahora;
   }
 
-cargarMisActividades() {
-    this.cargando = true;
+  cargarMisActividades(refresherEvent?: any) {
+    if (!refresherEvent) {
+      this.cargando = true;
+    }
 
-    // RESET OBLIGATORIO DE ARREGLOS
     this.actividadesProximas = [];
     this.actividadesHistorial = [];
 
-    const rutUsuario = localStorage.getItem('rut_usuario');
-    const tokenAcceso = localStorage.getItem('token_acceso');
-    const rutParam = rutUsuario || tokenAcceso;
+    const rutParam = this.obtenerRutSesion();
 
     if (!rutParam) {
-      console.warn('No se encontró RUT ni token en localStorage');
+      console.warn('No se encontró RUT activo en sessionStorage');
       this.cargando = false;
+      if (refresherEvent) refresherEvent.target.complete();
       return;
     }
 
-    // 1. Obtener Puntaje
+    // 1. Obtener Puntaje Total
     this.actividadService.getPuntajeTotal(rutParam).subscribe({
       next: (res: any) => this.puntajeTotal = res?.puntaje ?? 0,
       error: () => this.puntajeTotal = 0
     });
 
-    // 2. Obtener Inscripciones
+    // 2. Obtener Inscripciones desde la API
     this.actividadService.getInscripcionesPorAlumno(rutParam).subscribe({
       next: (inscripciones: any[]) => {
         this.actividadesProximas = [];
@@ -129,7 +198,6 @@ cargarMisActividades() {
                 (Array.isArray(inscripcion.encuesta) && inscripcion.encuesta.length > 0) ||
                 calificacionVal > 0;
 
-              // Verificación estricta de asistencia
               const estaPresente = Boolean(
                 inscripcion.asistencia === true || 
                 inscripcion.presente === true ||
@@ -138,14 +206,14 @@ cargarMisActividades() {
 
               const objetoActividad = {
                 id_actividad: act.id_actividad,
-                id_inscripcion: inscripcion.id_inscripcion ?? act.id_inscripcion,
-                nombre_actividad: act.nombre_actividad,
+                id_inscripcion: Number(inscripcion.id_inscripcion ?? act.id_inscripcion ?? 0),
+                nombre_actividad: act.nombre_actividad || act.nombre,
                 descripcion: act.descripcion,
                 img_actv: act.img_actv,
                 fecha: act.fecha,
                 hora_inicio: act.hora_inicio,
                 hora_termino: act.hora_termino,
-                puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? 0),
+                puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? act.puntos ?? 0),
                 lugar: lugarNombre,
                 presente: estaPresente,
                 encuesta_respondida: encuestaRespondida,
@@ -154,12 +222,10 @@ cargarMisActividades() {
 
               const finalizada = this.esActividadFinalizada(act);
 
-              // REGLA CLAVE: Al historial SOLO van las finalizadas DONDE estuvo presente
               if (finalizada) {
                 if (estaPresente) {
                   this.actividadesHistorial.push(objetoActividad);
                 }
-                // Si la actividad finalizó pero NO estuvo presente, no se agrega a 'actividadesHistorial'
               } else {
                 this.actividadesProximas.push(objetoActividad);
               }
@@ -167,17 +233,15 @@ cargarMisActividades() {
           });
         }
 
-        const rutReal = localStorage.getItem('rut_usuario') || rutParam;
-        this.complementarConCompletadas(rutReal);
+        this.complementarConCompletadas(rutParam, refresherEvent);
       },
-      error: (err: any) => {
-        const rutReal = localStorage.getItem('rut_usuario') || rutParam;
-        this.complementarConCompletadas(rutReal);
+      error: () => {
+        this.complementarConCompletadas(rutParam, refresherEvent);
       }
     });
   }
 
-  private complementarConCompletadas(rutOToken: string) {
+  private complementarConCompletadas(rutOToken: string, refresherEvent?: any) {
     this.actividadService.obtenerActividadesCompletadas(rutOToken).subscribe({
       next: (completadas: any[]) => {
         if (Array.isArray(completadas) && completadas.length > 0) {
@@ -197,10 +261,9 @@ cargarMisActividades() {
               coincidenciaHistorial.calificacion = califVal;
               coincidenciaHistorial.presente = estaPresente;
               if (item.id_inscripcion) {
-                coincidenciaHistorial.id_inscripcion = item.id_inscripcion;
+                coincidenciaHistorial.id_inscripcion = Number(item.id_inscripcion);
               }
             } else if (!coincidenciaProxima && estaPresente) {
-              // SOLO SE AGREGA SI ESTUVO PRESENTE Y NO ESTÁ EN PRÓXIMAS
               let lugarNombre = 'Lugar no especificado';
               if (act.lugar_actividad && Array.isArray(act.lugar_actividad) && act.lugar_actividad.length > 0) {
                 lugarNombre = act.lugar_actividad[0].descripcion || 'Lugar no especificado';
@@ -210,8 +273,8 @@ cargarMisActividades() {
 
               this.actividadesHistorial.push({
                 id_actividad: act.id_actividad,
-                id_inscripcion: item.id_inscripcion ?? act.id_inscripcion,
-                nombre_actividad: act.nombre_actividad,
+                id_inscripcion: Number(item.id_inscripcion ?? act.id_inscripcion ?? 0),
+                nombre_actividad: act.nombre_actividad || act.nombre,
                 descripcion: act.descripcion,
                 img_actv: act.img_actv,
                 fecha: act.fecha,
@@ -226,15 +289,32 @@ cargarMisActividades() {
             }
           });
         }
+
+        // =========================================================================
+        // ORDENAMIENTO DESCENDENTE: La última inscripción efectuada va primero
+        // =========================================================================
+        this.actividadesProximas.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
+        this.actividadesHistorial.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
+
         this.cargando = false;
+        if (refresherEvent) refresherEvent.target.complete();
+        this.cdRef.detectChanges();
       },
       error: (err: any) => {
         console.warn('Error al complementar con actividades completadas:', err);
+
+        // ORDENAMIENTO DE RESPALDO SI FALLA COMPLEMENTAR
+        this.actividadesProximas.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
+        this.actividadesHistorial.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
+
         this.cargando = false;
+        if (refresherEvent) refresherEvent.target.complete();
+        this.cdRef.detectChanges();
       }
     });
   }
-  // --- MÉTODOS PARA CERTIFICADOS Y ENCUESTAS ---
+
+  // --- MÉTODOS DE ENCUESTA Y CERTIFICADOS ---
 
   abrirModalEncuesta(actividad: any, modal: IonModal) {
     this.actividadEncuestaSeleccionada = actividad;
@@ -282,27 +362,58 @@ cargarMisActividades() {
     });
   }
 
-  descargarCertificado(act: any) {
-    const rutUsuario = localStorage.getItem('rut_usuario');
+  async descargarCertificado(act: any) {
+    const rutUsuario = this.obtenerRutSesion();
 
     if (!rutUsuario) {
-      console.warn('No se encontró el RUT del usuario para solicitar el certificado');
+      this.mostrarToast('No se encontró la sesión del usuario.', 'warning');
       return;
     }
 
+    const correoUsuario = this.obtenerCorreoEstudiante();
+    const mensajeCorreo = correoUsuario 
+      ? `El certificado de "${act.nombre_actividad}" será enviado a: ${correoUsuario}`
+      : `El certificado de "${act.nombre_actividad}" será enviado a tu correo institucional.`;
+
+    const alert = await this.alertController.create({
+      header: 'Enviar Certificado',
+      message: mensajeCorreo,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Enviar Certificado',
+          handler: () => {
+            this.ejecutarEnvioCertificado(rutUsuario, act.id_actividad);
+          }
+        }
+      ]
+    });
+
+    await alert.present();
+  }
+
+  private async ejecutarEnvioCertificado(rutUsuario: string, idActividad: number) {
+    const loader = await this.loadingController.create({
+      message: 'Generando y enviando certificado a tu correo...',
+      spinner: 'crescent'
+    });
+    await loader.present();
+
     const payload = {
       rut_usuario: rutUsuario,
-      id_actividad: act.id_actividad
+      id_actividad: idActividad
     };
 
     this.actividadService.enviarCertificadoCorreo(payload).subscribe({
       next: (res: any) => {
-        console.log('Certificado enviado correctamente:', res);
-        this.mostrarToast('Certificado enviado a tu correo.', 'success');
+        loader.dismiss();
+        this.mostrarToast(res?.message || 'Certificado enviado a tu correo con éxito.', 'success');
       },
       error: (err: any) => {
+        loader.dismiss();
         console.error('Error al enviar el certificado:', err);
-        this.mostrarToast('Error al enviar el certificado.', 'danger');
+        const msg = err.error?.detail || 'Ocurrió un error al enviar el certificado.';
+        this.mostrarToast(msg, 'danger');
       }
     });
   }
@@ -310,7 +421,7 @@ cargarMisActividades() {
   private async mostrarToast(mensaje: string, color: string = 'primary') {
     const toast = await this.toastController.create({
       message: mensaje,
-      duration: 2500,
+      duration: 3000,
       color: color,
       position: 'bottom'
     });
@@ -339,9 +450,7 @@ cargarMisActividades() {
       return;
     }
 
-    const tokenAcceso = localStorage.getItem('token_acceso');
-    const rutUsuario = localStorage.getItem('rut_usuario');
-    const rutOToken = rutUsuario || tokenAcceso;
+    const rutOToken = this.obtenerRutSesion();
 
     if (!rutOToken) {
       console.error('No se encontró el RUT ni sesión del usuario.');
@@ -349,12 +458,13 @@ cargarMisActividades() {
     }
 
     const alert = await this.alertController.create({
-      header: 'Confirmar salida',
+      header: 'Confirmar cancelación',
       message: '¿Estás seguro de que deseas cancelar tu inscripción a esta actividad?',
       buttons: [
-        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Volver', role: 'cancel' },
         {
-          text: 'Sí, salir',
+          text: 'Sí, cancelar',
+          role: 'destructive',
           handler: () => {
             this.cargando = true;
 
@@ -387,4 +497,4 @@ cargarMisActividades() {
   cambiarSegmento(event: any) {
     this.segmentoSeleccionado = event.detail.value;
   }
-}
+} 

@@ -25,17 +25,18 @@ $text-muted: #94a3b8;
 
 .custom-content {
   --background: #{$bg-dark};
-  --padding-top: 20px;
-  --padding-bottom: 20px;
+  --padding-top: 30px;
+  --padding-bottom: 40px;
 }
 
 .main-wrapper {
-  max-width: 460px;
+  max-width: 480px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 80vh;
+  padding: 10px 16px 40px 16px;
+  min-height: auto;
 }
 
 // ==========================================
@@ -45,47 +46,48 @@ $text-muted: #94a3b8;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
+  margin-top: 20px;
+  margin-bottom: 28px;
 
   .icon-circle {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
     background: rgba(245, 184, 0, 0.1);
     border: 2px solid $gold-primary;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
     box-shadow: 0 0 15px rgba(245, 184, 0, 0.2);
 
     .lock-icon {
-      font-size: 28px;
+      font-size: 30px;
       color: $gold-primary;
     }
   }
 
   .title-main {
     color: $text-light;
-    font-size: 1.6rem;
+    font-size: 1.75rem;
     font-weight: 800;
-    margin: 0 0 6px 0;
+    margin: 0 0 8px 0;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
   }
 
   .linea-decorativa {
-    width: 50px;
+    width: 60px;
     height: 3px;
     background-color: $gold-primary;
     border-radius: 2px;
-    margin: 6px 0 12px 0;
+    margin: 6px 0 14px 0;
   }
 
   .subtitle-text {
     color: $text-muted;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    max-width: 320px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-width: 360px;
     margin: 0;
   }
 }
@@ -95,18 +97,21 @@ $text-muted: #94a3b8;
 // ==========================================
 .form-card {
   background: $bg-card;
-  border-radius: 18px;
+  border-radius: 20px;
   border: 1px solid rgba(245, 184, 0, 0.25);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
   margin: 0;
-  padding: 8px 4px;
+  padding: 12px 8px 24px 8px;
 
   ion-card-content {
-    padding: 20px 16px;
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; // Separa automáticamente cada elemento hijo sin apretarlos
   }
 }
 
-// Custom Input Container (Evita el solapamiento)
+// Custom Input Container
 .custom-input-group {
   display: flex;
   flex-direction: column;
@@ -114,9 +119,9 @@ $text-muted: #94a3b8;
 
   .custom-label {
     color: $gold-primary;
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 10px;
     letter-spacing: 0.3px;
   }
 
@@ -126,18 +131,18 @@ $text-muted: #94a3b8;
     background: $input-bg;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
-    padding: 2px 8px 2px 14px;
+    padding: 6px 12px 6px 16px;
     transition: all 0.2s ease-in-out;
 
     &:focus-within {
       border-color: $gold-primary;
-      box-shadow: 0 0 8px rgba(245, 184, 0, 0.3);
+      box-shadow: 0 0 10px rgba(245, 184, 0, 0.3);
     }
 
     .input-icon {
       color: $gold-primary;
-      font-size: 20px;
-      margin-right: 10px;
+      font-size: 22px;
+      margin-right: 12px;
       flex-shrink: 0;
     }
 
@@ -156,29 +161,77 @@ $text-muted: #94a3b8;
       --padding-start: 4px;
       --padding-end: 4px;
       margin: 0;
-      height: 36px;
+      height: 40px;
 
       ion-icon {
-        font-size: 20px;
+        font-size: 22px;
       }
     }
   }
 }
 
-// Botón Principal
+// ==========================================
+// REQUISITOS DE CONTRASEÑA EN VIVO
+// ==========================================
+.requisitos-container {
+  background: rgba(1, 10, 20, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 4px 0 8px 0;
+
+  .requisitos-title {
+    color: $text-muted;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+  }
+
+  .lista-requisitos {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: $text-muted;
+      transition: color 0.25s ease;
+
+      ion-icon {
+        font-size: 1.05rem;
+        flex-shrink: 0;
+      }
+
+      &.cumplido {
+        color: #2dd36f; // Verde cuando cumple la regla
+      }
+    }
+  }
+}
+
+// ==========================================
+// BOTÓN PRINCIPAL
+// ==========================================
 .submit-btn {
   --background: #{$gold-primary};
   --background-hover: #{$gold-hover};
   --background-activated: #{$gold-hover};
   --color: #000000;
   font-weight: 800;
-  font-size: 0.95rem;
-  height: 50px;
+  font-size: 1rem;
+  height: 52px;
   letter-spacing: 0.6px;
   box-shadow: 0 4px 18px rgba(245, 184, 0, 0.35);
-  margin-top: 28px;
+  margin-top: 12px;
+  margin-bottom: 6px;
 
   ion-icon {
-    font-size: 18px;
+    font-size: 20px;
   }
 }

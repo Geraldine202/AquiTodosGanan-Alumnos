@@ -3,17 +3,48 @@
 
 <head>
   <meta charset="utf-8" />
-  <title>Ionic App</title>
+  <title>Aquí Todos Ganan</title>
 
   <base href="/" />
+
+  <link id="appFavicon" rel="icon" type="image/png" href="assets/logo.png" />
+
+  <!-- Script en el index que arregla las proporciones automáticamente -->
+<script>
+  (function() {
+    var img = new Image();
+    img.src = 'assets/logo.png';
+    img.onload = function() {
+      // Tomamos la dimensión MENOR para recortar lo sobrante sin dejar vacíos
+      var minDim = Math.min(img.width, img.height);
+      var canvas = document.createElement('canvas');
+      canvas.width = minDim;
+      canvas.height = minDim;
+      
+      var ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Calcular el centro para recortar justo la parte circular
+        var sx = (img.width - minDim) / 2;
+        var sy = (img.height - minDim) / 2;
+
+        // Dibujar solo la sección centrada usando la dimensión minDim
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, minDim, minDim);
+
+        var favicon = document.getElementById('appFavicon');
+        if (favicon) {
+          favicon.href = canvas.toDataURL('image/png');
+        }
+      }
+    };
+  })();
+</script>
 
   <meta name="color-scheme" content="light dark" />
   <meta name="viewport" content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="format-detection" content="telephone=no" />
   <meta name="msapplication-tap-highlight" content="no" />
 
-  <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
-
+  
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
   <!-- add to homescreen for ios -->

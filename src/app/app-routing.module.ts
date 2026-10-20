@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
-import { authGuard } from './guards/auth-guard';
+// Reemplaza la ruta del guard para importarlo desde tu servicio Auth
+import { authGuard } from './services/auth'; 
 
 const routes: Routes = [
   {
@@ -9,12 +10,12 @@ const routes: Routes = [
     pathMatch: 'full'
   },
   {
-    path: 'home',
-    loadChildren: () => import('./pages/home/home.module').then( m => m.HomePageModule)
-  },
-  {
     path: 'login',
     loadChildren: () => import('./pages/login/login.module').then( m => m.LoginPageModule)
+  },
+  {
+    path: 'home',
+    loadChildren: () => import('./pages/home/home.module').then( m => m.HomePageModule),
   },
   {
     path: 'recuperar',
@@ -27,38 +28,44 @@ const routes: Routes = [
   },
   {
     path: 'mis-actividades',
-    loadChildren: () => import('./pages/mis-actividades/mis-actividades.module').then( m => m.MisActividadesPageModule)
+    loadChildren: () => import('./pages/mis-actividades/mis-actividades.module').then( m => m.MisActividadesPageModule),
+    canActivate: [authGuard]
   },
   {
     path: 'inscribir-actividad',
-    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule)
+    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule),
+    canActivate: [authGuard]
   },
   {
-    path: 'inscribir-actividad/:id', // <--- ESTA ES LA QUE RECIBE EL ID DE LA ACTIVIDAD
-    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule)
+    path: 'inscribir-actividad/:id',
+    loadChildren: () => import('./pages/inscribir-actividad/inscribir-actividad.module').then( m => m.InscribirActividadPageModule),
+    canActivate: [authGuard]
   },
   {
     path: 'canjear',
-    loadChildren: () => import('./pages/canjear/canjear.module').then( m => m.CanjearPageModule)
+    loadChildren: () => import('./pages/canjear/canjear.module').then( m => m.CanjearPageModule),
+    canActivate: [authGuard]
   },
   {
     path: 'mis-premios',
-    loadChildren: () => import('./pages/mis-premios/mis-premios.module').then( m => m.MisPremiosPageModule)
-  },  {
+    loadChildren: () => import('./pages/mis-premios/mis-premios.module').then( m => m.MisPremiosPageModule),
+    canActivate: [authGuard]
+  },
+  {
     path: 'cambiar-clave-primer-login',
-    loadChildren: () => import('./pages/cambiar-clave-primer-login/cambiar-clave-primer-login.module').then( m => m.CambiarClavePrimerLoginPageModule)
+    loadChildren: () => import('./pages/cambiar-clave-primer-login/cambiar-clave-primer-login.module').then( m => m.CambiarClavePrimerLoginPageModule),
+    canActivate: [authGuard]
   },
   {
     path: 'admin-actividades',
-    loadChildren: () => import('./pages/admin-actividades/admin-actividades.module').then( m => m.AdminActividadesPageModule)
+    loadChildren: () => import('./pages/admin-actividades/admin-actividades.module').then( m => m.AdminActividadesPageModule),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'admin-canjes',
+    loadChildren: () => import('./pages/admin-canjes/admin-canjes.module').then( m => m.AdminCanjesPageModule),
+    canActivate: [authGuard]
   }
-
-
-
-
-
-
-
 ];
 
 @NgModule({

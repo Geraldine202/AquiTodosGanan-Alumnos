@@ -10,18 +10,18 @@
     
     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; height: 50px;">
 
-      <!-- LADO IZQUIERDO: Menú + Logo + Clima -->
+      <!-- LADO IZQUIERDO: Menú + Clima Dinámico Puente Alto -->
       <div style="display: flex; align-items: center; gap: 12px;">
         
-        <!-- Botón de Menú -->
-        <ion-buttons slot="start">
+        <!-- Botón de Menú: SOLO VISIBLE SI HAY SESIÓN INICIADA -->
+        <ion-buttons slot="start" *ngIf="usuarioLogueado">
           <ion-menu-button autoHide="false" style="--color: #ffffff; color: #ffffff;"></ion-menu-button>
         </ion-buttons>
 
-        <!-- Divisor sutil -->
-        <div style="height: 18px; width: 1px; background: rgba(255, 255, 255, 0.2); margin: 0 2px;"></div>
+        <!-- Divisor sutil: SOLO VISIBLE SI HAY SESIÓN INICIADA -->
+        <div *ngIf="usuarioLogueado" style="height: 18px; width: 1px; background: rgba(255, 255, 255, 0.2); margin: 0 2px;"></div>
 
-        <!-- Clima -->
+        <!-- Clima Dinámico de Puente Alto -->
         <div style="
           display: flex; 
           align-items: center; 
@@ -33,8 +33,10 @@
           color: #f3f4f6; 
           font-size: 0.78rem;
         ">
-          <ion-icon name="partly-sunny-outline" style="font-size: 1.1rem; color: #ffb800;"></ion-icon>
-          <span style="white-space: nowrap; font-weight: 500;">18°C, Santiago</span>
+          <ion-icon [name]="iconoClima" style="font-size: 1.1rem; color: #ffb800;"></ion-icon>
+          <span style="white-space: nowrap; font-weight: 500;">
+            {{ cargandoClima ? '...' : temperatura + ', Puente Alto' }}
+          </span>
         </div>
       </div>
 
@@ -66,24 +68,27 @@
         <!-- ESTADO 2: LOGUEADO -->
         <ng-container *ngIf="usuarioLogueado">
           
-          <!-- Badge Saludo con estado activo -->
-          <div style="
-            display: flex; 
-            align-items: center; 
-            gap: 6px; 
-            background: rgba(255, 255, 255, 0.08); 
-            padding: 5px 12px; 
-            border-radius: 20px; 
-            border: 1px solid rgba(255, 255, 255, 0.12);
-          ">
+          <!-- Badge Saludo -->
+          <div 
+            routerLink="/perfil"
+            style="
+              display: flex; 
+              align-items: center; 
+              gap: 6px; 
+              background: rgba(255, 255, 255, 0.08); 
+              padding: 5px 12px; 
+              border-radius: 20px; 
+              border: 1px solid rgba(255, 255, 255, 0.12);
+              cursor: pointer;
+            ">
             <div style="width: 7px; height: 7px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;"></div>
             
             <span style="color: #e5e7eb; font-size: 0.8rem; font-weight: 500; white-space: nowrap;">
-              Bienvenido: <strong style="color: #ffb800; font-weight: 700;">{{ usuarioLogueado.nombre || usuarioLogueado.nombre_completo || 'Alumno' }}</strong>
+              Bienvenido: <strong style="color: #ffb800; font-weight: 700;">{{ nombreMostrar }}</strong>
             </span>
           </div>
 
-          <!-- BOTÓN CERRAR SESIÓN REDISEÑADO -->
+          <!-- BOTÓN CERRAR SESIÓN -->
           <ion-button 
             (click)="cerrarSesion()" 
             title="Cerrar sesión"
@@ -106,7 +111,6 @@
           </ion-button>
 
         </ng-container>
-
       </div>
 
     </div>

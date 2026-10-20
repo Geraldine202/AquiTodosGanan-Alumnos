@@ -7,7 +7,7 @@
     <h1><ion-icon name="create-outline" color="primary"></ion-icon> Inscribir Actividad</h1>
     <p>Selecciona una actividad disponible e inscríbete para asegurar tu cupo y acumular puntos.</p>
     
-    <!-- RESUMEN DE SEDE Y PUNTAJE ACUMULADO (Aprovechando las variables del .ts) -->
+    <!-- RESUMEN DE SEDE Y PUNTAJE ACUMULADO -->
     <div class="user-stats-bar ion-margin-top" *ngIf="nombreSede || puntajeTotal !== undefined">
       <ion-chip color="primary" outline="true" *ngIf="nombreSede">
         <ion-icon name="location-outline"></ion-icon>
@@ -30,9 +30,10 @@
       <ion-card class="actividad-card" *ngFor="let act of actividadesDisponibles">
         <div class="card-img-wrapper">
           <img 
-            [src]="act.img_actv || 'assets/slide1.jpg'" 
+            [src]="act.img_actv || 'assets/logo.png'" 
             [alt]="act.nombre_actividad"
-            (error)="$event.target.src = 'assets/slide1.jpg'">
+            class="img-fit-contain"
+            (error)="$event.target.src = 'assets/logo.png'">
           
           <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
             +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts

@@ -47,19 +47,18 @@ export class InscribirActividadPage implements OnInit {
   cargarDatos() {
     this.cargando = true;
 
-    // 1. Obtener usuario de la sesión
+    // 1. Obtener usuario de la sesión (EXCLUSIVAMENTE DESDE sessionStorage)
     const possibleKeys = [
-      'usuario', 'user', 'currentUser', 'usuarioLogueado', 
+      'usuarioLogueado', 'usuario', 'user', 'currentUser', 
       'token', 'token_acceso', 'rut_usuario', 'auth', 'session'
     ];
 
     let sessionData: any = null;
 
     for (const key of possibleKeys) {
-      const valLocal = localStorage.getItem(key);
       const valSession = sessionStorage.getItem(key);
-      if (valLocal || valSession) {
-        sessionData = valLocal || valSession;
+      if (valSession) {
+        sessionData = valSession;
         break;
       }
     }
@@ -85,7 +84,7 @@ export class InscribirActividadPage implements OnInit {
       this.usuarioLogueado?.rut_usuario || 
       this.usuarioLogueado?.rut_alumno || 
       this.usuarioLogueado?.rut || 
-      localStorage.getItem('rut_usuario') || 
+      sessionStorage.getItem('rut_usuario') || 
       sessionData;
 
     if (!rawRut) {
@@ -106,7 +105,6 @@ export class InscribirActividadPage implements OnInit {
 
         // FILTRADO ESTRICTO DE ACTIVIDADES DISPONIBLES EN EL ALUMNO
         const actividadesVigentes = listaSede.filter((act: any) => {
-          // Si la actividad ya fue marcada como Finalizada/Cancelada por el Administrador, se oculta inmediatamente
           if (this.esActividadFinalizada(act)) {
             return false;
           }
@@ -128,7 +126,6 @@ export class InscribirActividadPage implements OnInit {
             const idsInscritos = this.misInscripcionesPrevias.map(i => i.id_actividad);
 
             // CÁLCULO DE PUNTAJE REAL:
-            // Solo suma los puntos si la asistencia fue marcada como verdader (asistio / presente)
             this.puntajeTotal = this.misInscripcionesPrevias.reduce((acc, curr) => {
               const asistio = Boolean(curr.asistio ?? curr.presente ?? curr.asistencia);
               const puntos = curr.puntos_ganados || curr.puntos || 0;
@@ -190,7 +187,6 @@ export class InscribirActividadPage implements OnInit {
     for (const item of this.misInscripcionesPrevias) {
       const actInscrita = item.actividad || item;
       
-      // Omitir validación de traslape si la actividad inscrita ya finalizó
       if (this.esActividadFinalizada(actInscrita)) {
         continue;
       }
@@ -214,7 +210,7 @@ export class InscribirActividadPage implements OnInit {
       const nomConf = conf.nombre_actividad || conf.nombre || 'otra actividad';
       await this.mostrarAlerta(
         'Conflicto de Horario',
-        `Ya estás inscrito en "${nomConf}" el mismo día de ${conf.hora_inicio} a ${conf.hora_termino}. Debes cancelarla o esperar que finalice antes para poder inscribirte en esta.`
+        `Ya estás inscrito en "${nomConf}" el mismo día de ${conf.hora_inicio} a ${conf.hora_termino}. Debes cancelarla o esperar que finalice antes de inscribirte.`
       );
       return;
     }
@@ -239,12 +235,13 @@ export class InscribirActividadPage implements OnInit {
   ejecutarInscripcion(actividad: any) {
     this.procesando = true;
 
+    // Extraer exclusivamente de sessionStorage
     const rawRut = 
       this.usuarioLogueado?.rut_usuario || 
       this.usuarioLogueado?.rut_alumno || 
       this.usuarioLogueado?.rut || 
-      localStorage.getItem('rut_usuario') ||
-      localStorage.getItem('token_acceso');
+      sessionStorage.getItem('rut_usuario') ||
+      sessionStorage.getItem('token_acceso');
 
     if (!rawRut) {
       this.procesando = false;
@@ -280,10 +277,10 @@ export class InscribirActividadPage implements OnInit {
         
         const mensajeError = typeof err.error?.detail === 'string' 
           ? err.error.detail 
-          : 'No se pudo procesar la inscripción.';
+          : (err.error?.error || 'No fue posible procesar la inscripción.');
 
-        if (err.status === 400) {
-          await this.mostrarAlerta('No es posible inscribir', mensajeError);
+        if (err.status === 400 || err.status === 403) {
+          await this.mostrarAlerta('Inscripción Denegada', mensajeError);
         } else {
           await this.mostrarToast(mensajeError, 'danger');
         }

@@ -1,164 +1,162 @@
 <ion-app>
 
-  <!-- MENÚ LATERAL GLOBAL -->
-  <ion-menu contentId="main-content" side="start" type="overlay" persistent="true">
+  <!-- MENÚ LATERAL GLOBAL ALUMNO / GENERAL (Sin persistent="true") -->
+  <ion-menu 
+    contentId="main-content" 
+    side="start" 
+    type="overlay" 
+    (ionWillOpen)="validarAperturaMenu()">
     
-    <!-- ENCABEZADO DEL MENÚ (LOGOTIPO Y MARCA) -->
+    <!-- ENCABEZADO DEL MENÚ -->
     <ion-header class="ion-no-border">
-      <ion-toolbar style=" 
-        --background: #001e36; 
-        background: linear-gradient(135deg, #001e36 0%, #001122 100%); 
-        padding: 16px 16px 12px 16px;
-      ">
-        <div style="display: flex; flex-direction: column; gap: 12px; align-items: center; width: 100%;">
-          
-
-          <div style="height: 100px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-            <img src="assets/logo.png" alt="Logo Aquí Todos Ganan" style="max-height: 100%; max-width: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));" />
-          </div>
-
+      <ion-toolbar class="menu-toolbar">
+        <div class="brand-container">
+          <img src="assets/logo.png" alt="Logo Aquí Todos Ganan" class="brand-logo" />
         </div>
       </ion-toolbar>
     </ion-header>
 
     <!-- CUERPO DEL MENÚ -->
-    <ion-content style="--background: #00172b;">
-      <div style="padding: 12px 8px;">
+    <ion-content class="menu-content">
+      <div class="menu-body">
         
-        <!-- SECCIÓN 1: GENERAL -->
-        <p style="
-          color: #6b7280; 
-          font-size: 0.68rem; 
-          font-weight: 700; 
-          text-transform: uppercase; 
-          letter-spacing: 0.8px; 
-          padding: 0 12px; 
-          margin: 8px 0 6px 0;
-        ">
-          General
-        </p>
+        <!-- MOSTRAR SECCIONES SOLO SI EL USUARIO ESTÁ LOGUEADO -->
+        <ng-container *ngIf="estaLogueado()">
 
-        <ion-list lines="none" style="background: transparent; padding: 0;">
-          
-          <!-- Inicio -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/home" 
-            routerLinkActive="menu-item-activo" 
-            [routerLinkActiveOptions]="{ exact: true }"
-            class="menu-item-custom">
-            <ion-icon name="home-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Inicio</ion-label>
-          </ion-item>
+          <!-- SECCIÓN 1: GENERAL -->
+          <p class="menu-section-title">General</p>
 
-          <!-- Perfil -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/perfil" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="person-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Perfil</ion-label>
-          </ion-item>
+          <ion-list lines="none" class="menu-list">
+            
+            <!-- Inicio -->
+            <ion-item 
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/home" 
+              routerLinkActive="menu-item-activo" 
+              [routerLinkActiveOptions]="{ exact: true }"
+              class="menu-item-custom">
+              <ion-icon name="home-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Inicio</ion-label>
+            </ion-item>
 
-        </ion-list>
+            <!-- Perfil -->
+            <ion-item 
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/perfil" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="person-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Mi Perfil</ion-label>
+            </ion-item>
 
-        <!-- SECCIÓN 2: ACTIVIDADES -->
-        <p style="
-          color: #6b7280; 
-          font-size: 0.68rem; 
-          font-weight: 700; 
-          text-transform: uppercase; 
-          letter-spacing: 0.8px; 
-          padding: 0 12px; 
-          margin: 16px 0 6px 0;
-        ">
-          Actividades
-        </p>
+          </ion-list>
 
-        <ion-list lines="none" style="background: transparent; padding: 0;">
+          <!-- SECCIÓN 2: ACTIVIDADES -->
+          <p class="menu-section-title">Actividades</p>
 
-          <!-- Inscribir Actividad -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/inscribir-actividad" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="add-circle-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Inscribir Actividad</ion-label>
-          </ion-item>
+          <ion-list lines="none" class="menu-list">
 
-          <!-- Mis Actividades -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/mis-actividades" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="calendar-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Mis Actividades</ion-label>
-          </ion-item>
-                    <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/admin-actividades" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="calendar-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Administrar Actividades</ion-label>
-          </ion-item>
-        </ion-list>
+            <!-- Inscribir Actividad (Solo Alumno 1 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAlumnoOConsejero()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/inscribir-actividad" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="add-circle-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Inscribir Actividad</ion-label>
+            </ion-item>
 
-        <!-- SECCIÓN 3: PUNTOS Y PREMIOS -->
-        <p style="
-          color: #6b7280; 
-          font-size: 0.68rem; 
-          font-weight: 700; 
-          text-transform: uppercase; 
-          letter-spacing: 0.8px; 
-          padding: 0 12px; 
-          margin: 16px 0 6px 0;
-        ">
-          Puntos y Premios
-        </p>
+            <!-- Mis Actividades (Solo Alumno 1 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAlumnoOConsejero()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/mis-actividades" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="calendar-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Mis Actividades</ion-label>
+            </ion-item>
 
-        <ion-list lines="none" style="background: transparent; padding: 0;">
+            <!-- Administrar Actividades (Solo Docente 3 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAdminActividades()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/admin-actividades" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="options-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Administrar Actividades</ion-label>
+            </ion-item>
 
-          <!-- Canjear -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/canjear" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="gift-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Canjear Puntos</ion-label>
-          </ion-item>
+          </ion-list>
 
-          <!-- Mis Premios -->
-          <ion-item 
-            button
-            (click)="cerrarMenu()" 
-            routerLink="/mis-premios" 
-            routerLinkActive="menu-item-activo"
-            class="menu-item-custom">
-            <ion-icon name="trophy-outline" slot="start" class="menu-icon"></ion-icon>
-            <ion-label class="menu-label notranslate" translate="no">Mis Premios</ion-label>
-          </ion-item>
+          <!-- SECCIÓN 3: PUNTOS Y PREMIOS -->
+          <p class="menu-section-title">Puntos y Premios</p>
 
-        </ion-list>
+          <ion-list lines="none" class="menu-list">
+
+            <!-- Canjear Puntos (Solo Alumno 1 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAlumnoOConsejero()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/canjear" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="gift-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Canjear Puntos</ion-label>
+            </ion-item>
+
+            <!-- Mis Premios (Solo Alumno 1 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAlumnoOConsejero()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/mis-premios" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="trophy-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Mis Premios</ion-label>
+            </ion-item>
+
+            <!-- Administrar Canjes (Solo Docente 3 y Consejero de Carrera 4) -->
+            <ion-item 
+              *ngIf="esAdminActividades()"
+              button
+              (click)="cerrarMenu()" 
+              routerLink="/admin-canjes" 
+              routerLinkActive="menu-item-activo"
+              class="menu-item-custom">
+              <ion-icon name="ticket-outline" slot="start" class="menu-icon"></ion-icon>
+              <ion-label class="menu-label notranslate" translate="no">Administrar Canjes</ion-label>
+            </ion-item>
+
+          </ion-list>
+
+        </ng-container>
+
+        <!-- MENSAJE SI NO HA INICIADO SESIÓN -->
+        <div *ngIf="!estaLogueado()" class="ion-padding ion-text-center">
+          <p style="color: #666; margin-bottom: 16px;">Debes iniciar sesión para acceder al menú.</p>
+          <ion-button routerLink="/login" (click)="cerrarMenu()" expand="block" shape="round">
+            Iniciar Sesión
+          </ion-button>
+        </div>
 
       </div>
     </ion-content>
 
     <!-- PIE DEL MENÚ -->
-    <ion-footer class="ion-no-border" style="background: #001122; border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 16px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; color: #6b7280; font-size: 0.72rem;">
+    <ion-footer class="ion-no-border menu-footer">
+      <div class="footer-content">
         <span class="notranslate" translate="no">Aquí Todos Ganan</span>
-        <span style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">v1.0.0</span>
+        <span class="badge-version">v1.0.0</span>
       </div>
     </ion-footer>
 

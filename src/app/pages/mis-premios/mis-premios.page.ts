@@ -31,22 +31,35 @@ export class MisPremiosPage implements OnInit {
   }
 
   /**
-   * Obtiene el RUT desde el almacenamiento local y llama al servicio
+   * Obtiene el RUT desde sessionStorage y llama al servicio
    */
   obtenerRutYCanjes() {
     this.cargando = true;
 
-    const sessionData = localStorage.getItem('usuarioLogueado') || 
-                        localStorage.getItem('usuario') || 
-                        localStorage.getItem('user') ||
-                        sessionStorage.getItem('usuarioLogueado');
+    const possibleKeys = [
+      'usuarioLogueado', 'usuario', 'user', 'currentUser', 'rut_usuario'
+    ];
+
+    let sessionData: any = null;
+
+    for (const key of possibleKeys) {
+      const val = sessionStorage.getItem(key);
+      if (val) {
+        sessionData = val;
+        break;
+      }
+    }
 
     if (sessionData) {
       try {
-        const user = JSON.parse(sessionData);
+        const user = typeof sessionData === 'string' && sessionData.trim().startsWith('{')
+          ? JSON.parse(sessionData)
+          : { rut_usuario: sessionData };
+
         this.rutUsuario = user.rut_usuario || user.rut || user.alumno?.rut_usuario || user.alumno?.rut || '';
 
         if (this.rutUsuario) {
+          this.rutUsuario = String(this.rutUsuario).replace(/\./g, '').trim();
           this.cargarMisCanjes(this.rutUsuario);
         } else {
           console.warn('No se encontró el RUT en la sesión del usuario');
@@ -63,15 +76,21 @@ export class MisPremiosPage implements OnInit {
   }
 
   /**
-   * Consume el endpoint actualizado del backend
+   * Consume el endpoint del backend y ordena descendentemente por el último canje
    */
   cargarMisCanjes(rut: string) {
     this.actividadService.getMisCanjes(rut).subscribe({
       next: (res: any) => {
         const lista = Array.isArray(res) ? res : (res?.data || res?.canjes || []);
         
-        this.todosLosCanjes = lista;
-        this.filtrarCanjes(); // Aplica el filtro (por defecto 'TODOS')
+        // ORDENAMIENTO DESCENDENTE (El último canje realizado queda de primero)
+        this.todosLosCanjes = lista.sort((a:any, b:any) => {
+          const idA = Number(a.id_canje || a.id_solicitud || a.id || 0);
+          const idB = Number(b.id_canje || b.id_solicitud || b.id || 0);
+          return idB - idA;
+        });
+
+        this.filtrarCanjes(); // Aplica el filtro
         
         this.cargando = false;
         this.cdRef.detectChanges();
@@ -85,15 +104,17 @@ export class MisPremiosPage implements OnInit {
       }
     });
   }
-obtenerIconoEstado(idEstado?: number): string {
-  switch (idEstado) {
-    case 1: return 'time-outline';               // Solicitado (Reloj)
-    case 2: return 'alert-circle-outline';       // Aprobado (Alerta/Pendiente retiro)
-    case 3: return 'checkmark-circle-outline';  // Retirado (Check verde)
-    case 4: return 'close-circle-outline';      // Cancelado (Cruz roja)
-    default: return 'help-circle-outline';
+
+  obtenerIconoEstado(idEstado?: number): string {
+    switch (idEstado) {
+      case 1: return 'time-outline';               // Solicitado (Reloj)
+      case 2: return 'alert-circle-outline';       // Aprobado (Alerta/Pendiente retiro)
+      case 3: return 'checkmark-circle-outline';  // Retirado (Check verde)
+      case 4: return 'close-circle-outline';      // Cancelado (Cruz roja)
+      default: return 'help-circle-outline';
+    }
   }
-}
+
   /**
    * Filtra los canjes según la pestaña seleccionada en el ion-segment
    */
@@ -129,7 +150,7 @@ obtenerIconoEstado(idEstado?: number): string {
     const id = idEstado || 0;
     const desc = (descripcion || '').toUpperCase();
 
-    if (id === 1 || desc.includes('SOLICITADO')) return 'medium';   // Solicitado (Gris/Grisáceo)
+    if (id === 1 || desc.includes('SOLICITADO')) return 'medium';   // Solicitado (Gris)
     if (id === 2 || desc.includes('APROBADO')) return 'warning';    // Aprobado (Amarillo/Naranja)
     if (id === 3 || desc.includes('RETIRADO')) return 'success';    // Retirado (Verde)
     if (id === 4 || desc.includes('CANCELADO')) return 'danger';    // Cancelado (Rojo)

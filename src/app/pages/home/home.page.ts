@@ -1,7 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AlumnoService } from 'src/app/services/alumno';
-import { ActividadService } from 'src/app/services/actividad';
+import { ActividadService, InfoNivelUsuario } from 'src/app/services/actividad';
 
 @Component({
   selector: 'app-home',
@@ -9,21 +11,36 @@ import { ActividadService } from 'src/app/services/actividad';
   styleUrls: ['./home.page.scss'],
   standalone: false
 })
-export class HomePage implements OnInit {
+export class HomePage implements OnInit, OnDestroy {
 
   estaLogueado: boolean = false;
   usuarioLogueado: any = null;
-  nombreAlumno: string = 'Alumno/a';
+  nombreAlumno: string = 'Usuario/a';
   rutAlumno: string = '';
   misPuntos: number = 0;
+
+  nivelUsuario: InfoNivelUsuario = {
+    id_nivel: 1,
+    nombre_nivel: 'Bronce',
+    total_actividades: 0,
+    faltantes_siguiente: 4
+  };
+
   nivelAlumno: string = 'Bronce';
   colorNivel: string = 'tertiary';
 
+  // Configuración y Datos de Carrusel/Slides
   actividadesSlides: any[] = [];
-  actividadesProximas: any[] = []; // Banner de actividades próximas (últimas 48h)
-  notificaciones: any[] = [];        // Lista de notificaciones registradas
+  actividadesProximas: any[] = [];
+  notificaciones: any[] = [];
   totalActividades: number = 0;
   totalPremios: number = 0;
+
+  // Variables específicas de perfil Docente
+  misActividadesDocente: any[] = [];
+  canjesPendientesDocente: any[] = [];
+
+  private subUsuario!: Subscription;
 
   constructor(
     private alumnoService: AlumnoService,
@@ -33,6 +50,15 @@ export class HomePage implements OnInit {
   ) { }
 
   ngOnInit() {
+    // Escuchar el estado de la sesión en tiempo real
+    this.subUsuario = this.alumnoService.usuario$.subscribe(usuario => {
+      if (usuario) {
+        this.cargarDatosUsuario();
+      } else {
+        this.limpiarEstado();
+      }
+    });
+
     this.cargarDatosUsuario();
     this.cargarActividades();
     this.cargarPremios();
@@ -40,122 +66,178 @@ export class HomePage implements OnInit {
 
   ionViewWillEnter() {
     this.cargarDatosUsuario();
+    this.cargarActividades();
+    this.cargarPremios();
   }
 
-  /**
-   * Carga la sesión desde LocalStorage/SessionStorage y obtiene los datos actualizados del backend
-   */
-  cargarDatosUsuario() {
-    console.log('--- BUSCANDO SESIÓN EN STORAGE ---');
-    
-    const possibleKeys = [
-      'usuario', 'user', 'currentUser', 'usuarioLogueado', 
-      'token', 'token_acceso', 'auth', 'session'
-    ];
-
-    let sessionData: any = null;
-    let keyEncontrada: string = '';
-
-    for (const key of possibleKeys) {
-      const valLocal = localStorage.getItem(key);
-      const valSession = sessionStorage.getItem(key);
-      if (valLocal || valSession) {
-        sessionData = valLocal || valSession;
-        keyEncontrada = key;
-        break;
-      }
+  ngOnDestroy() {
+    if (this.subUsuario) {
+      this.subUsuario.unsubscribe();
     }
+  }
 
-    if (sessionData) {
-      try {
-        let identificador = sessionData;
-        let objetoUsuario: any = null;
+  private limpiarEstado() {
+    this.estaLogueado = false;
+    this.usuarioLogueado = null;
+    this.nombreAlumno = 'Usuario/a';
+    this.rutAlumno = '';
+    this.misPuntos = 0;
+    this.nivelAlumno = 'Bronce';
+    this.colorNivel = 'tertiary';
+    this.actividadesProximas = [];
+    this.notificaciones = [];
+    this.misActividadesDocente = [];
+    this.canjesPendientesDocente = [];
+    this.cdRef.detectChanges();
+  }
 
-        if (typeof sessionData === 'string' && sessionData.trim().startsWith('{')) {
-          objetoUsuario = JSON.parse(sessionData);
-          identificador = objetoUsuario.token || objetoUsuario.token_acceso || objetoUsuario.rut_usuario || objetoUsuario.rut || objetoUsuario.correo || sessionData;
-        }
+  private limpiarRut(rut: any): string {
+    if (!rut) return '';
+    return String(rut).replace(/[^0-9kK]/g, '').trim();
+  }
 
-        if (objetoUsuario) {
-          const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || objetoUsuario.nombre_usuario || objetoUsuario.username || 'prueba';
-          this.nombreAlumno = nombre.trim().split(' ')[0];
-          this.estaLogueado = true;
-          this.misPuntos = objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? 0;
-          this.calcularNivel(this.misPuntos);
+  obtenerTipoUsuario(): number {
+    if (!this.usuarioLogueado) return 1;
+    return Number(
+      this.usuarioLogueado.id_tipo_usuario ?? 
+      this.usuarioLogueado.tipo_usuario?.id_tipo_usuario ?? 
+      1
+    );
+  }
 
-          // Obtener RUT e iniciar búsquedas rápidas (GET)
-          const rutTemp = objetoUsuario.rut_usuario || objetoUsuario.rut;
-          if (rutTemp) {
-            this.rutAlumno = rutTemp;
-            this.cargarProximasActividades(rutTemp);
-            this.cargarNotificaciones(rutTemp);
-          }
-        } else {
-          this.estaLogueado = true;
-          this.nombreAlumno = sessionData;
-        }
+  esDocente(): boolean {
+    return this.obtenerTipoUsuario() === 3;
+  }
 
-        // Consultar al backend la verdad absoluta del usuario en BD
-        if (identificador) {
-          this.actividadService.getUsuarioSesion(identificador).subscribe({
-            next: (userBD: any) => {
-              if (userBD && (userBD.rut_usuario || userBD.nombre_completo)) {
-                this.usuarioLogueado = userBD;
-                this.estaLogueado = true;
+  esAlumnoOConsejero(): boolean {
+    const tipo = this.obtenerTipoUsuario();
+    return tipo === 1 || tipo === 4;
+  }
 
-                const nombres = (userBD.nombre_completo || this.nombreAlumno).trim().split(' ');
-                this.nombreAlumno = nombres[0];
+cargarDatosUsuario() {
+  const sessionData = sessionStorage.getItem('usuarioLogueado') || sessionStorage.getItem('usuario');
 
-                this.misPuntos = userBD.puntaje_total ?? 0;
-                this.calcularNivel(this.misPuntos);
+  if (!sessionData) {
+    this.limpiarEstado();
+    return;
+  }
 
-                if (userBD.rut_usuario) {
-                  this.rutAlumno = userBD.rut_usuario;
-                  this.cargarProximasActividades(userBD.rut_usuario);
-                  this.cargarNotificaciones(userBD.rut_usuario);
-                }
+  let objetoUsuario: any = null;
+  try {
+    objetoUsuario = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
+  } catch (e) {
+    console.error('Error parseando sesión local:', e);
+  }
 
-                if (keyEncontrada) {
-                  if (objetoUsuario) {
-                    const objetoActualizado = { ...objetoUsuario, ...userBD };
-                    localStorage.setItem(keyEncontrada, JSON.stringify(objetoActualizado));
-                  } else {
-                    localStorage.setItem(keyEncontrada, JSON.stringify(userBD));
-                  }
-                }
-                
-                localStorage.setItem('usuario', JSON.stringify(userBD));
-              }
-              this.cdRef.detectChanges();
-            },
-            error: (err: any) => {
-              console.warn('Backend respondió error, se mantiene sesión local:', err);
-              this.estaLogueado = true;
-              this.cdRef.detectChanges();
-            }
-          });
-        }
-      } catch (e) {
-        console.error('Error parseando sesión:', e);
-        this.estaLogueado = true;
-      }
-    } else {
-      console.warn('No se encontró ninguna clave de usuario en el storage.');
-      this.estaLogueado = false;
-      this.misPuntos = 0;
-      this.actividadesProximas = [];
-      this.notificaciones = [];
+  // 1. ASIGNACIÓN INSTANTÁNEA DESDE MEMORIA LOCAL (0ms de latencia)
+  if (objetoUsuario) {
+    this.usuarioLogueado = objetoUsuario;
+    const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || 'Usuario';
+    this.nombreAlumno = nombre.trim().split(' ')[0];
+    this.estaLogueado = true;
+    this.rutAlumno = objetoUsuario.rut_usuario || objetoUsuario.rut || '';
+
+    // Cargar puntos en pantalla inmediatamente desde la sesión
+    this.misPuntos = Number(
+      objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? objetoUsuario.puntos ?? 0
+    );
+
+    if (objetoUsuario.nivelUsuarioInfo) {
+      this.nivelUsuario = objetoUsuario.nivelUsuarioInfo;
+      this.nivelAlumno = objetoUsuario.nivelAlumno || objetoUsuario.nivelUsuarioInfo.nombre_nivel;
+      this.colorNivel = objetoUsuario.colorNivel || 'tertiary';
     }
 
     this.cdRef.detectChanges();
   }
 
-  /**
-   * Consulta inscripciones y extrae únicamente las que ocurrirán en las próximas 48 horas (Banner visual)
-   */
+  const rutLimpio = this.limpiarRut(this.rutAlumno);
+  const servicioAny: any = this.actividadService;
+
+  // 2. PETICIONES INDEPENDIENTES (Sin esperar al forkJoin)
+
+  // Consulta de Puntos Frescos
+  if (rutLimpio && typeof servicioAny.getPuntajeTotal === 'function') {
+    servicioAny.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null))).subscribe((resPuntos: any) => {
+      if (resPuntos !== null && resPuntos !== undefined) {
+        const puntosFrescos = Number(
+          resPuntos?.puntaje_total ?? resPuntos?.puntaje ?? resPuntos?.puntos ?? 
+          (typeof resPuntos === 'number' ? resPuntos : this.misPuntos)
+        );
+        this.misPuntos = puntosFrescos;
+        this.actualizarPuntosSesion(puntosFrescos);
+        this.cdRef.detectChanges();
+      }
+    });
+  }
+
+  // Consulta de Nivel de Usuario
+  if (rutLimpio && typeof servicioAny.getNivelUsuario === 'function') {
+    servicioAny.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null))).subscribe((resNivel: any) => {
+      if (resNivel) {
+        this.nivelUsuario = resNivel;
+        this.nivelAlumno = resNivel.nombre_nivel || 'Bronce';
+        const idNivel = Number(resNivel.id_nivel ?? 1);
+        this.colorNivel = idNivel === 3 ? 'medium' : idNivel === 2 ? 'warning' : 'tertiary';
+        this.actualizarSesionConNivel(resNivel, this.nivelAlumno, this.colorNivel);
+        this.cdRef.detectChanges();
+      }
+    });
+  }
+
+  // Carga de actividades adicionales según el perfil
+  if (this.esAlumnoOConsejero() && rutLimpio) {
+    this.cargarProximasActividades(rutLimpio);
+    this.cargarNotificaciones(rutLimpio);
+  } else if (this.esDocente() && rutLimpio) {
+    this.cargarDatosDocente(rutLimpio);
+  }
+}
+
+  private actualizarPuntosSesion(puntosActuales: number) {
+    if (!this.usuarioLogueado) return;
+
+    this.usuarioLogueado.puntaje_total = puntosActuales;
+    this.usuarioLogueado.puntaje = puntosActuales;
+    this.usuarioLogueado.puntos = puntosActuales;
+
+    const possibleKeys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
+    possibleKeys.forEach(key => {
+      sessionStorage.setItem(key, JSON.stringify(this.usuarioLogueado));
+    });
+  }
+
+  private actualizarSesionConNivel(nivelInfo: InfoNivelUsuario, nombreNivel: string, color: string) {
+    const possibleKeys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
+
+    possibleKeys.forEach(key => {
+      const dataStr = sessionStorage.getItem(key);
+      if (dataStr) {
+        try {
+          const obj = JSON.parse(dataStr);
+          obj.nivelUsuarioInfo = nivelInfo;
+          obj.nivelUsuario = nivelInfo;
+          obj.nivelAlumno = nombreNivel;
+          obj.colorNivel = color;
+
+          sessionStorage.setItem(key, JSON.stringify(obj));
+        } catch (e) {}
+      }
+    });
+  }
+
+  cargarDatosDocente(rutDocente: string) {
+    this.actividadService.getActividades().subscribe({
+      next: (res: any) => {
+        const lista = Array.isArray(res) ? res : (res?.data || []);
+        this.misActividadesDocente = lista.slice(0, 3);
+        this.cdRef.detectChanges();
+      }
+    });
+  }
+
   cargarProximasActividades(rutAlumno: string) {
     if (!rutAlumno) return;
-
     this.actividadService.obtenerInscripcionesPorUsuario(rutAlumno).subscribe({
       next: (res: any) => {
         const inscripciones = Array.isArray(res) ? res : (res?.data || []);
@@ -165,47 +247,23 @@ export class HomePage implements OnInit {
         this.actividadesProximas = inscripciones.filter((item: any) => {
           const act = item.actividad;
           if (!act || !act.fecha) return false;
-
           const fechaAct = new Date(`${act.fecha}T${act.hora_inicio || '00:00:00'}`);
           return fechaAct >= ahora && fechaAct <= limite48h;
         });
 
         this.cdRef.detectChanges();
-      },
-      error: (err: any) => {
-        console.warn('No se pudieron obtener inscripciones del alumno para el banner:', err);
       }
     });
   }
 
-  /**
-   * Carga las notificaciones existentes generadas por FastAPI en segundo plano
-   */
   cargarNotificaciones(rutAlumno: string) {
     if (!rutAlumno) return;
-
     this.actividadService.getNotificacionesAlumno(rutAlumno).subscribe({
       next: (data) => {
         this.notificaciones = data || [];
         this.cdRef.detectChanges();
-      },
-      error: (err) => {
-        console.error('Error al cargar notificaciones:', err);
       }
     });
-  }
-
-  calcularNivel(puntos: number) {
-    if (puntos >= 500) {
-      this.nivelAlumno = 'Oro';
-      this.colorNivel = 'warning';
-    } else if (puntos >= 200) {
-      this.nivelAlumno = 'Plata';
-      this.colorNivel = 'medium';
-    } else {
-      this.nivelAlumno = 'Bronce';
-      this.colorNivel = 'tertiary';
-    }
   }
 
   cargarActividades() {
@@ -215,8 +273,7 @@ export class HomePage implements OnInit {
         this.totalActividades = lista.length;
         this.actividadesSlides = lista.slice(0, 5);
         this.cdRef.detectChanges();
-      },
-      error: (err: any) => console.error('Error al cargar actividades:', err)
+      }
     });
   }
 
@@ -226,18 +283,15 @@ export class HomePage implements OnInit {
         const lista = Array.isArray(res) ? res : (res?.data || []);
         this.totalPremios = lista.length;
         this.cdRef.detectChanges();
-      },
-      error: (err: any) => console.error('Error al cargar premios:', err)
+      }
     });
   }
 
   cerrarSesion() {
     localStorage.clear();
     sessionStorage.clear();
-    this.estaLogueado = false;
-    this.usuarioLogueado = null;
-    this.actividadesProximas = [];
-    this.notificaciones = [];
+    this.limpiarEstado();
+    this.alumnoService.cerrarSesion();
     this.router.navigate(['/login']);
   }
 }

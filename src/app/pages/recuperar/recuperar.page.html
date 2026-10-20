@@ -19,7 +19,7 @@
           Ingresa tu correo institucional registrado para enviarte un código de recuperación.
         </p>
         <p *ngIf="paso === 2">
-          Ingresa el código que enviamos a tu correo y tu nueva contraseña.
+          Ingresa el código que enviamos a tu correo y tu nueva contraseña cumpliendo los requisitos de seguridad.
         </p>
       </div>
 
@@ -33,7 +33,7 @@
               [(ngModel)]="correo" 
               label="Correo electrónico" 
               label-placement="floating" 
-              placeholder="ejemplo@gmail.com">
+              placeholder="ejemplo@duocuc.cl">
             </ion-input>
           </ion-item>
 
@@ -49,8 +49,10 @@
       <!-- PASO 2: INGRESAR TOKEN Y NUEVA CLAVE -->
       <ng-container *ngIf="paso === 2">
         <div class="form-container">
+          
+          <!-- CÓDIGO DE VALIDACIÓN -->
           <ion-item lines="none" class="input-item">
-            <ion-icon name="lock-closed-outline" slot="start"></ion-icon>
+            <ion-icon name="shield-checkmark-outline" slot="start"></ion-icon>
             <ion-input 
               type="text" 
               maxlength="6" 
@@ -61,21 +63,81 @@
             </ion-input>
           </ion-item>
 
+          <!-- NUEVA CONTRASEÑA -->
           <ion-item lines="none" class="input-item">
-            <ion-icon name="key-outline" slot="start"></ion-icon>
+            <ion-icon name="lock-closed-outline" slot="start"></ion-icon>
             <ion-input 
-              type="password" 
+              [type]="verNuevaPassword ? 'text' : 'password'" 
               [(ngModel)]="nuevaContrasenia" 
+              (ionInput)="validarPasswordEnVivo()"
               label="Nueva Contraseña" 
               label-placement="floating" 
-              placeholder="••••••••">
+              placeholder="Ej: Clave#2026">
             </ion-input>
+            <ion-button fill="clear" slot="end" (click)="toggleVerNuevaPassword()" type="button" class="eye-btn">
+              <ion-icon slot="icon-only" [name]="verNuevaPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </ion-button>
           </ion-item>
 
+          <!-- MENSAJE DE ERROR GLOBAL DE SEGURIDAD -->
+          <div class="ion-padding-start ion-padding-end ion-text-start" *ngIf="errorPassword">
+            <small style="color: var(--ion-color-danger, #eb445a); font-size: 0.8rem;">
+              <ion-icon name="alert-circle-outline" style="vertical-align: middle;"></ion-icon> {{ errorPassword }}
+            </small>
+          </div>
+
+          <!-- INDICADORES DINÁMICOS DE REQUISITOS -->
+          <div class="ion-padding-start ion-text-start ion-margin-top ion-margin-bottom" style="font-size: 0.82rem; line-height: 1.5;">
+            <div [style.color]="requisitosPass.longitud ? '#2dd36f' : '#86888f'">
+              <ion-icon [name]="requisitosPass.longitud ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Mínimo 8 caracteres
+            </div>
+            <div [style.color]="requisitosPass.mayuscula ? '#2dd36f' : '#86888f'">
+              <ion-icon [name]="requisitosPass.mayuscula ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos una letra MAYÚSCULA (A-Z)
+            </div>
+            <div [style.color]="requisitosPass.minuscula ? '#2dd36f' : '#86888f'">
+              <ion-icon [name]="requisitosPass.minuscula ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos una letra minúscula (a-z)
+            </div>
+            <div [style.color]="requisitosPass.numero ? '#2dd36f' : '#86888f'">
+              <ion-icon [name]="requisitosPass.numero ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos un número (0-9)
+            </div>
+            <div [style.color]="requisitosPass.especial ? '#2dd36f' : '#86888f'">
+              <ion-icon [name]="requisitosPass.especial ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+              Al menos un carácter especial (@, $, !, %, *, ?, &, #, ., -)
+            </div>
+          </div>
+
+          <!-- CONFIRMAR CONTRASEÑA -->
+          <ion-item lines="none" class="input-item">
+            <ion-icon name="checkmark-done-outline" slot="start"></ion-icon>
+            <ion-input 
+              [type]="verConfirmarPassword ? 'text' : 'password'" 
+              [(ngModel)]="confirmarContrasenia" 
+              label="Confirmar Nueva Contraseña" 
+              label-placement="floating" 
+              placeholder="Repite la clave">
+            </ion-input>
+            <ion-button fill="clear" slot="end" (click)="toggleVerConfirmarPassword()" type="button" class="eye-btn">
+              <ion-icon slot="icon-only" [name]="verConfirmarPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+            </ion-button>
+          </ion-item>
+
+          <!-- ERROR SI LAS CLAVES NO COINCIDEN -->
+          <div class="ion-padding-start ion-padding-end ion-text-start" *ngIf="confirmarContrasenia && nuevaContrasenia !== confirmarContrasenia">
+            <small style="color: var(--ion-color-danger, #eb445a); font-size: 0.8rem;">
+              <ion-icon name="close-circle-outline" style="vertical-align: middle;"></ion-icon> Las contraseñas no coinciden
+            </small>
+          </div>
+
+          <!-- BOTÓN DE RESTABLECER DESHABILITADO SI NO CUMPLE -->
           <ion-button 
             expand="block" 
             (click)="cambiarContrasenia()"
-            class="btn-reset-main">
+            [disabled]="errorPassword !== '' || nuevaContrasenia !== confirmarContrasenia || !nuevaContrasenia"
+            class="btn-reset-main ion-margin-top">
             Cambiar Contraseña
           </ion-button>
           

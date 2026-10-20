@@ -2,6 +2,16 @@
 
 <ion-content [fullscreen]="true" class="mis-actividades-content">
 
+  <!-- REFRESHER NATIVO PARA ACTUALIZAR SIN F5 -->
+  <ion-refresher slot="fixed" (ionRefresh)="doRefresh($event)">
+    <ion-refresher-content 
+      pullingIcon="chevron-down-circle-outline" 
+      pullingText="Desliza para actualizar" 
+      refreshingSpinner="crescent" 
+      refreshingText="Cargando tus actividades...">
+    </ion-refresher-content>
+  </ion-refresher>
+
   <!-- CABECERA DE LA PÁGINA -->
   <div class="page-title-banner ion-padding">
     <h1>
@@ -26,19 +36,21 @@
   <!-- INDICADOR DE CARGA -->
   <div *ngIf="cargando" class="ion-text-center ion-padding my-4">
     <ion-spinner name="crescent" color="primary"></ion-spinner>
-    <p class="text-muted">Cargando tus actividades...</p>
+    <p class="text-muted" style="color: #94a3b8; margin-top: 8px;">Cargando tus actividades...</p>
   </div>
 
   <!-- CONTENIDO: VISTA DE PRÓXIMAS ACTIVIDADES -->
   <div *ngIf="!cargando && segmentoSeleccionado === 'proximas'" class="ion-padding-horizontal margin-top-section">
     <div *ngIf="actividadesProximas.length > 0; else noProximas">
-      <ion-card class="actividad-card" *ngFor="let act of actividadesProximas" (click)="verDetalle(act.id_actividad)">
-        <div class="card-img-wrapper">
-          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+      
+      <ion-card class="actividad-card" *ngFor="let act of actividadesProximas">
+        <!-- CONTENEDOR CON IMAGEN COMPLETA (SIN CORTE) -->
+        <div class="card-img-wrapper" (click)="verDetalle(act.id_actividad)">
+          <img [src]="act.img_actv || 'assets/logo.png'" [alt]="act.nombre_actividad" class="img-fit-contain">
           <ion-badge color="success" class="status-badge">Confirmado</ion-badge>
         </div>
 
-        <ion-card-header>
+        <ion-card-header (click)="verDetalle(act.id_actividad)">
           <div class="card-top-info">
             <ion-badge color="warning" class="pts-badge">
               +{{ act.puntos }} Pts
@@ -52,7 +64,7 @@
         </ion-card-header>
 
         <ion-card-content class="card-footer-content">
-          <p class="lugar-txt">
+          <p class="lugar-txt" (click)="verDetalle(act.id_actividad)">
             <ion-icon name="location-outline" color="primary"></ion-icon> 
             {{ act.lugar }}
           </p>
@@ -75,6 +87,7 @@
           </ng-template>
         </ion-card-content>
       </ion-card>
+
     </div>
 
     <ng-template #noProximas>
@@ -92,10 +105,11 @@
   <!-- CONTENIDO: VISTA DE HISTORIAL -->
   <div *ngIf="!cargando && segmentoSeleccionado === 'historial'" class="ion-padding-horizontal margin-top-section">
     <div *ngIf="actividadesHistorial.length > 0; else noHistorial">
+      
       <ion-card class="actividad-card historial-card" *ngFor="let act of actividadesHistorial">
-        
+        <!-- CONTENEDOR CON IMAGEN COMPLETA (SIN CORTE) -->
         <div class="card-img-wrapper" (click)="verDetalle(act.id_actividad)">
-          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad">
+          <img [src]="act.img_actv || 'assets/logo.png'" [alt]="act.nombre_actividad" class="img-fit-contain">
           <ion-badge color="medium" class="status-badge">Finalizada</ion-badge>
         </div>
 
@@ -141,21 +155,19 @@
             </ion-button>
 
             <!-- BADGE Y ESTRELLAS COMPLETADAS (Si ya respondió) -->
-          <!-- BADGE Y ESTRELLAS COMPLETADAS (Si ya respondió) -->
-          <div *ngIf="act.encuesta_respondida" style="display: flex; align-items: center; gap: 8px;">
-            <ion-badge color="success" class="badge-evaluado">
-              <ion-icon name="checkmark-circle-outline"></ion-icon> Valoración
-            </ion-badge>
+            <div *ngIf="act.encuesta_respondida" style="display: flex; align-items: center; gap: 8px;">
+              <ion-badge color="success" class="badge-evaluado">
+                <ion-icon name="checkmark-circle-outline"></ion-icon> Valoración
+              </ion-badge>
 
-            <!-- Muestra siempre las estrellas si la encuesta fue respondida, parseando la calificación a número (+act.calificacion) -->
-            <div class="estrellas-guardadas" style="display: flex; gap: 2px;">
-              <ion-icon 
-                *ngFor="let e of [1, 2, 3, 4, 5]" 
-                [name]="e <= (+act.calificacion || 0) ? 'star' : 'star-outline'" 
-                style="color: #ffc409; font-size: 1.1rem;">
-              </ion-icon>
+              <div class="estrellas-guardadas" style="display: flex; gap: 2px;">
+                <ion-icon 
+                  *ngFor="let e of [1, 2, 3, 4, 5]" 
+                  [name]="e <= (+act.calificacion || 0) ? 'star' : 'star-outline'" 
+                  style="color: #ffc409; font-size: 1.1rem;">
+                </ion-icon>
+              </div>
             </div>
-          </div>
           </div>
         </ion-card-content>
 
@@ -175,7 +187,7 @@
 
 </ion-content>
 
-<!-- MODAL INTEGRADO DE ENCUESTA CON ESTRELLAS Y COMENTARIOS -->
+<!-- MODAL DE ENCUESTA -->
 <ion-modal #modalEncuesta class="custom-modal">
   <ng-template>
     <ion-header class="ion-no-border">
@@ -190,12 +202,12 @@
     <ion-content class="modal-content ion-padding">
       <div class="text-center ion-margin-bottom ion-text-center">
         <h2 style="font-weight: bold; margin-bottom: 6px;">{{ actividadEncuestaSeleccionada?.nombre_actividad }}</h2>
-        <p style="color: var(--ion-color-medium); font-size: 0.9rem;">
+        <p style="color: #94a3b8; font-size: 0.9rem;">
           ¿Qué tan satisfecho quedaste con esta actividad?
         </p>
       </div>
 
-      <!-- SELECCIÓN DE ESTRELLAS INTERACTIVA (1 A 5) -->
+      <!-- SELECCIÓN DE ESTRELLAS -->
       <div class="estrellas-container">
         <ion-icon 
           *ngFor="let estrella of [1, 2, 3, 4, 5]" 

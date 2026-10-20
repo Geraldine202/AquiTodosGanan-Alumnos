@@ -54,7 +54,12 @@
 
         <div class="card-body-custom">
           <div class="premio-info">
-            <img [src]="item.premio?.imagen || 'assets/slide1.jpg'" [alt]="item.premio?.descripcion">
+            <!-- Imagen con fallback por defecto a assets/logo.png y manejo del evento (error) -->
+            <img 
+              [src]="item.premio?.imagen || 'assets/logo.png'" 
+              [alt]="item.premio?.descripcion || 'Premio'"
+              (error)="$any($event.target).src = 'assets/logo.png'">
+            
             <div class="details">
               <h3>{{ item.premio?.descripcion || 'Premio Canjeado' }}</h3>
               <p class="puntos">

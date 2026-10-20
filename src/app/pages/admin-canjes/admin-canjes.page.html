@@ -1,0 +1,244 @@
+<app-header></app-header>
+
+<ion-content class="ion-padding bg-light">
+
+  <!-- ========================================== -->
+  <!-- BANNER INDICADOR DE ROL Y VISTA             -->
+  <!-- ========================================== -->
+  <ion-card class="ion-no-margin ion-margin-bottom shadow-sm" style="border-left: 4px solid var(--ion-color-primary, #3880ff);">
+    <ion-card-content class="ion-padding-vertical ion-padding-horizontal">
+      <div class="ion-flex ion-align-items-center" style="gap: 10px;">
+        <ion-icon 
+          [name]="idTipoUsuarioLogueado === 2 ? 'shield-checkmark-outline' : 'briefcase-outline'" 
+          color="primary" 
+          style="font-size: 1.6rem;">
+        </ion-icon>
+        <div>
+          <h4 style="margin: 0; font-weight: 700; color: #0f172a;">
+            {{ idTipoUsuarioLogueado === 2 ? 'Gestión Global de Canjes' : 'Canjes a mi Cargo' }}
+          </h4>
+          <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: #64748b;">
+            <span *ngIf="idTipoUsuarioLogueado === 2">
+              Vista completa de administración para gestionar todas las solicitudes institucionales.
+            </span>
+            <span *ngIf="idTipoUsuarioLogueado !== 2">
+              Mostrando únicamente las solicitudes de canje de premios asignados a tu responsabilidad.
+            </span>
+          </p>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- ========================================== -->
+  <!-- SEGMENTO DE FILTRADO POR ESTADO            -->
+  <!-- ========================================== -->
+  <ion-toolbar class="ion-no-border ion-margin-bottom">
+    <ion-segment [(ngModel)]="filtroEstado" (ionChange)="aplicarFiltros()" scrollable="true">
+      <ion-segment-button value="todos">Todos</ion-segment-button>
+      <ion-segment-button value="1">Solicitados</ion-segment-button>
+      <ion-segment-button value="2">Aprobados</ion-segment-button>
+      <ion-segment-button value="3">Retirados</ion-segment-button>
+      <ion-segment-button value="4">Cancelados</ion-segment-button>
+    </ion-segment>
+  </ion-toolbar>
+
+  <!-- ========================================== -->
+  <!-- BARRA DE BÚSQUEDA EN TIEMPO REAL           -->
+  <!-- ========================================== -->
+  <ion-toolbar class="ion-no-border ion-margin-bottom">
+    <ion-searchbar 
+      [(ngModel)]="busqueda" 
+      (ionInput)="aplicarFiltros()" 
+      placeholder="Buscar por RUT, Alumno, Premio o Nivel..."
+      animated="true"
+      class="custom-searchbar">
+    </ion-searchbar>
+  </ion-toolbar>
+
+  <!-- Refresher -->
+  <ion-refresher slot="fixed" (ionRefresh)="cargarSolicitudes($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- Spinner de Carga Inicial -->
+  <div class="ion-text-center ion-padding" *ngIf="cargando && solicitudes.length === 0">
+    <ion-spinner name="crescent" color="primary"></ion-spinner>
+    <p class="text-muted">Cargando solicitudes de canje...</p>
+  </div>
+
+  <!-- Estado Vacío -->
+  <div class="ion-text-center ion-padding empty-state" *ngIf="!cargando && solicitudesFiltradas.length === 0">
+    <ion-icon name="file-tray-outline" style="font-size: 48px; color: #888;"></ion-icon>
+    <h3>No hay solicitudes registradas</h3>
+    <p class="text-muted">
+      <span *ngIf="idTipoUsuarioLogueado !== 2">No tienes premios a tu cargo con solicitudes pendientes o puedes ajustar los filtros.</span>
+      <span *ngIf="idTipoUsuarioLogueado === 2">Ajusta los filtros de búsqueda o desliza hacia abajo para actualizar.</span>
+    </p>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- TARJETAS DE SOLICITUDES DE CANJE           -->
+  <!-- ========================================== -->
+  <ion-card *ngFor="let item of solicitudesFiltradas" class="shadow-sm border-rounded ion-margin-bottom">
+    <ion-item lines="full">
+      <ion-avatar slot="start" *ngIf="item.premio?.imagen">
+        <img [src]="item.premio?.imagen" alt="Premio" />
+      </ion-avatar>
+      <ion-avatar slot="start" *ngIf="!item.premio?.imagen">
+        <img src="assets/logo.png" alt="Premio" />
+      </ion-avatar>
+
+      <ion-label class="ion-text-wrap">
+        <div class="ion-flex ion-align-items-center ion-justify-content-between" style="gap: 8px;">
+          <h2 style="font-weight: 700; color: #1e293b; margin: 0;">
+            {{ item.premio?.descripcion || 'Premio de Catálogo' }}
+          </h2>
+        </div>
+
+        <p style="margin-top: 4px;">
+          <strong>Alumno:</strong> {{ item.usuario?.nombre_completo || 'Estudiante' }}
+        </p>
+        <p><strong>RUT:</strong> {{ item.rut_usuario }}</p>
+      </ion-label>
+
+      <!-- Badge según id_estado_canje -->
+      <ion-badge slot="end" [color]="item.id_estado_canje === 1 ? 'warning' : item.id_estado_canje === 2 ? 'primary' : item.id_estado_canje === 3 ? 'success' : 'danger'" style="padding: 6px 10px; font-size: 0.85rem;">
+        <span *ngIf="item.id_estado_canje === 1">Solicitado</span>
+        <span *ngIf="item.id_estado_canje === 2">Aprobado</span>
+        <span *ngIf="item.id_estado_canje === 3">Retirado</span>
+        <span *ngIf="item.id_estado_canje === 4">Cancelado</span>
+      </ion-badge>
+    </ion-item>
+
+    <ion-card-content class="ion-padding-top">
+
+      <!-- ========================================== -->
+      <!-- CUADRO COMPARATIVO DE NIVELES             -->
+      <!-- ========================================== -->
+      <div class="ion-margin-bottom ion-padding" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div class="ion-flex ion-align-items-center ion-justify-content-between" style="gap: 12px; flex-wrap: wrap;">
+          
+          <!-- Nivel del Alumno -->
+          <div>
+            <small style="display: block; color: #64748b; font-weight: 600;">Nivel Alumno:</small>
+            <ion-badge 
+              [color]="item.info_nivel_usuario?.id_nivel === 3 ? 'tertiary' : (item.info_nivel_usuario?.id_nivel === 2 ? 'warning' : 'medium')" 
+              style="padding: 5px 8px; font-size: 0.85rem;">
+              <ion-icon name="person-outline" style="margin-right: 4px;"></ion-icon>
+              {{ item.info_nivel_usuario?.nombre_nivel || 'Bronce' }} 
+              ({{ item.info_nivel_usuario?.total_actividades || 0 }} act.)
+            </ion-badge>
+          </div>
+
+          <!-- Indicador de Cumplimiento -->
+          <div>
+            <ion-icon 
+              [name]="(item.info_nivel_usuario?.id_nivel ?? 1) >= (item.premio?.id_nivel ?? 1) ? 'checkmark-done-circle-outline' : 'alert-circle-outline'" 
+              [color]="(item.info_nivel_usuario?.id_nivel ?? 1) >= (item.premio?.id_nivel ?? 1) ? 'success' : 'danger'" 
+              style="font-size: 1.5rem;">
+            </ion-icon>
+          </div>
+
+          <!-- Nivel Requerido por el Premio -->
+          <div>
+            <small style="display: block; color: #64748b; font-weight: 600;">Nivel Requerido:</small>
+            <ion-badge 
+              [color]="item.premio?.id_nivel === 3 ? 'tertiary' : (item.premio?.id_nivel === 2 ? 'warning' : 'medium')" 
+              style="padding: 5px 8px; font-size: 0.85rem;">
+              <ion-icon name="ribbon-outline" style="margin-right: 4px;"></ion-icon>
+              {{ item.premio?.nivel?.nombre_nivel || item.premio?.nombre_nivel || 'Bronce' }}
+            </ion-badge>
+          </div>
+
+        </div>
+
+        <!-- Alerta de Advertencia si el Alumno NO Cumple el Nivel -->
+        <div *ngIf="(item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1)" class="ion-margin-top">
+          <ion-text color="danger">
+            <small>⚠️ <strong>Insuficiente:</strong> El estudiante requiere subir de nivel para poder obtener este premio.</small>
+          </ion-text>
+        </div>
+      </div>
+
+      <!-- Categoría del premio si existe -->
+      <div *ngIf="item.premio?.categoria_premio?.descripcion" class="ion-margin-bottom">
+        <strong>Categoría Premio:</strong>
+        <ion-badge color="light" style="margin-left: 6px; color: #475569; border: 1px solid #cbd5e1;">
+          {{ item.premio?.categoria_premio?.descripcion }}
+        </ion-badge>
+      </div>
+
+      <!-- Sede del Alumno -->
+      <p class="ion-margin-bottom">
+        <strong>Sede Estudiante:</strong> 
+        <ion-badge color="tertiary" style="margin-left: 6px;">
+          <ion-icon name="location-outline"></ion-icon>
+          {{ item.nombre_sede_alumno || 'Puente Alto' }}
+        </ion-badge>
+      </p>
+
+      <!-- Stock disponible en Sede del Alumno -->
+      <p class="ion-margin-bottom">
+        <strong>Stock disponible en Sede:</strong> 
+        <ion-badge [color]="(item.stock_sede_alumno ?? 0) > 0 ? 'success' : 'danger'" style="margin-left: 6px;">
+          {{ (item.stock_sede_alumno ?? 0) > 0 ? (item.stock_sede_alumno + ' unidades') : '⚠️ Agotado (0 un.)' }}
+        </ion-badge>
+      </p>
+
+      <p class="ion-margin-bottom"><strong>Costo en Puntos:</strong> {{ item.costo_puntaje }} pts</p>
+      <p class="ion-margin-bottom"><strong>Fecha Solicitud:</strong> {{ item.fecha_solicitud | date:'dd/MM/yyyy HH:mm' }}</p>
+      
+      <!-- Plazo de retiro si está Aprobado (ID 2) -->
+      <div *ngIf="item.id_estado_canje === 2 && item.retiro_premio?.fecha_limite" class="ion-margin-top ion-padding-top" style="border-top: 1px dashed #cbd5e1;">
+        <ion-text color="tertiary">
+          <small><strong>📅 Plazo límite de retiro en DAE:</strong> {{ item.retiro_premio?.fecha_limite | date:'dd/MM/yyyy' }}</small>
+        </ion-text>
+      </div>
+    </ion-card-content>
+
+    <!-- Botones de Acción según estado -->
+    <ion-row class="ion-padding-horizontal ion-padding-bottom">
+
+      <!-- Estado 1 (Solicitado): Permite Aprobar (2) o Rechazar (4) -->
+      <ng-container *ngIf="item.id_estado_canje === 1">
+        <ion-col size="6">
+          <ion-button 
+            expand="block" 
+            color="success" 
+            size="small" 
+            [disabled]="(item.stock_sede_alumno ?? 0) <= 0 || (item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1)"
+            (click)="aprobarCanje(item)">
+            <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+            {{ (item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1) ? 'Nivel Insuficiente' : ((item.stock_sede_alumno ?? 0) > 0 ? 'Aprobar' : 'Sin Stock') }}
+          </ion-button>
+        </ion-col>
+        <ion-col size="6">
+          <ion-button expand="block" color="danger" fill="outline" size="small" (click)="cancelarPorStock(item)">
+            <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+            Rechazar
+          </ion-button>
+        </ion-col>
+      </ng-container>
+
+      <!-- Estado 2 (Aprobado): Permite Entregar (3) o Cancelar (4) -->
+      <ng-container *ngIf="item.id_estado_canje === 2">
+        <ion-col size="8">
+          <ion-button expand="block" color="primary" size="small" (click)="marcarComoRetirado(item)">
+            <ion-icon name="gift-outline" slot="start"></ion-icon>
+            Entregar Premio
+          </ion-button>
+        </ion-col>
+        <ion-col size="4">
+          <ion-button expand="block" color="danger" fill="outline" size="small" (click)="cancelarPorStock(item)">
+            <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+            Cancelar
+          </ion-button>
+        </ion-col>
+      </ng-container>
+
+    </ion-row>
+  </ion-card>
+
+  <app-footer></app-footer>
+</ion-content>

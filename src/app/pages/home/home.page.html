@@ -2,67 +2,267 @@
 
 <ion-content [fullscreen]="true" class="home-alumno-content">
 
-  <!-- ==================== ESTADO 1: ALUMNO LOGUEADO ==================== -->
-  <div class="user-hero-card" *ngIf="estaLogueado; else guestHero">
-    <div class="hero-content">
-      <div class="user-welcome">
-        <div class="header-user-row">
-          <ion-badge [color]="colorNivel" class="badge-nivel">
-            <ion-icon name="trophy-outline"></ion-icon> Nivel {{ nivelAlumno }}
-          </ion-badge>
-        </div>
-        <h1>¡Hola, {{ nombreAlumno }}! 👋</h1>
-        <p>Sigue participando para acumular más beneficios</p>
-      </div>
+  <!-- ========================================================================= -->
+  <!-- VISTA 1: ALUMNO / CONSEJERO DE CARRERA (*ngIf="esAlumnoOConsejero()")      -->
+  <!-- ========================================================================= -->
+  <div *ngIf="esAlumnoOConsejero()">
 
-      <div class="points-box" [routerLink]="['/canjear']">
-        <div class="points-info">
-          <span class="points-label">TUS PUNTOS ACUMULADOS</span>
-          <div class="points-val">
-            <ion-icon name="star" class="star-icon"></ion-icon>
-            <h2>{{ misPuntos }}</h2>
-            <span class="pts-tag">pts</span>
+    <!-- ESTADO 1: ALUMNO / CONSEJERO LOGUEADO -->
+    <div class="user-hero-card" *ngIf="estaLogueado; else guestHero">
+      <div class="hero-content">
+        <div class="user-welcome">
+          <div class="header-user-row">
+            <ion-badge [color]="colorNivel" class="badge-nivel">
+              <ion-icon name="trophy-outline"></ion-icon> Nivel {{ nivelAlumno }}
+            </ion-badge>
           </div>
+          <h1>¡Hola, {{ nombreAlumno }}! 👋</h1>
+          <p>Sigue participando para acumular más beneficios</p>
         </div>
-        <ion-icon name="chevron-forward-outline" class="arrow-icon"></ion-icon>
+
+        <div class="points-box" [routerLink]="['/canjear']">
+          <div class="points-info">
+            <span class="points-label">TUS PUNTOS ACUMULADOS</span>
+            <div class="points-val">
+              <ion-icon name="star" class="star-icon"></ion-icon>
+              <h2>{{ misPuntos }}</h2>
+              <span class="pts-tag">pts</span>
+            </div>
+          </div>
+          <ion-icon name="chevron-forward-outline" class="arrow-icon"></ion-icon>
+        </div>
       </div>
     </div>
-  </div>
 
-<!-- ==================== BANNER RECORDATORIO ACTIVIDAD PRÓXIMA (48H) ==================== -->
-  <div class="ion-padding-horizontal ion-margin-top" *ngIf="estaLogueado && actividadesProximas && actividadesProximas.length > 0">
-    <ion-card color="warning" class="ion-no-margin shadow-sm border-rounded" style="border-left: 6px solid #d39e00;">
-      <ion-card-header class="ion-padding-bottom" style="padding-top: 12px;">
-        <ion-card-title class="ion-flex ion-align-items-center" style="font-size: 1.05rem; font-weight: 700; gap: 8px; color: #856404;">
-          <ion-icon name="time-outline" style="font-size: 1.4rem; color: #856404;"></ion-icon>
-          ¡Recordatorio! Tienes {{ actividadesProximas.length }} actividad(es) muy cerca
-        </ion-card-title>
-      </ion-card-header>
+    <!-- BANNER RECORDATORIO ACTIVIDAD PRÓXIMA (48H) -->
+    <div class="ion-padding-horizontal ion-margin-top" *ngIf="estaLogueado && actividadesProximas && actividadesProximas.length > 0">
+      <ion-card color="warning" class="ion-no-margin shadow-sm border-rounded" style="border-left: 6px solid #d39e00;">
+        <ion-card-header class="ion-padding-bottom" style="padding-top: 12px;">
+          <ion-card-title class="ion-flex ion-align-items-center" style="font-size: 1.05rem; font-weight: 700; gap: 8px; color: #856404;">
+            <ion-icon name="time-outline" style="font-size: 1.4rem; color: #856404;"></ion-icon>
+            ¡Recordatorio! Tienes {{ actividadesProximas.length }} actividad(es) muy cerca
+          </ion-card-title>
+        </ion-card-header>
 
-      <ion-card-content class="ion-padding-top" style="padding-bottom: 12px;">
-        <div *ngFor="let item of actividadesProximas" 
-             class="ion-margin-bottom" 
-             style="background: rgba(255, 255, 255, 0.6); padding: 10px; border-radius: 8px; cursor: pointer;"
-             [routerLink]="['/detalle-actividad', item.actividad?.id_actividad || item.id_actividad]">
-          
-          <h3 style="font-weight: 700; margin: 0 0 4px 0; color: #222; font-size: 1rem;">
-            {{ (item.actividad?.nombre_actividad || item.nombre_actividad) || 'Actividad Próxima' }}
-          </h3>
-          
-          <p style="margin: 0; font-size: 0.88rem; color: #444;">
-            📅 <strong>Fecha:</strong> {{ item.actividad?.fecha || item.fecha }} | ⏰ <strong>Hora:</strong> {{ item.actividad?.hora_inicio || item.hora_inicio || '00:00' }} hrs.
-          </p>
-          
-          <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: #666;" 
-             *ngIf="(item.actividad?.lugar_actividad && item.actividad?.lugar_actividad[0]) || (item.lugar_actividad && item.lugar_actividad[0])">
-            📍 <strong>Lugar:</strong> {{ item.actividad?.lugar_actividad?.[0]?.descripcion || item.lugar_actividad?.[0]?.descripcion }}
-          </p>
+        <ion-card-content class="ion-padding-top" style="padding-bottom: 12px;">
+          <div *ngFor="let item of actividadesProximas" 
+               class="ion-margin-bottom" 
+               style="background: rgba(255, 255, 255, 0.6); padding: 10px; border-radius: 8px; cursor: pointer;"
+               [routerLink]="['/detalle-actividad', item.actividad?.id_actividad || item.id_actividad]">
+            
+            <h3 style="font-weight: 700; margin: 0 0 4px 0; color: #222; font-size: 1rem;">
+              {{ (item.actividad?.nombre_actividad || item.nombre_actividad) || 'Actividad Próxima' }}
+            </h3>
+            
+            <p style="margin: 0; font-size: 0.88rem; color: #444;">
+              📅 <strong>Fecha:</strong> {{ item.actividad?.fecha || item.fecha }} | ⏰ <strong>Hora:</strong> {{ item.actividad?.hora_inicio || item.hora_inicio || '00:00' }} hrs.
+            </p>
+            
+            <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: #666;" 
+               *ngIf="(item.actividad?.lugar_actividad && item.actividad?.lugar_actividad[0]) || (item.lugar_actividad && item.lugar_actividad[0])">
+              📍 <strong>Lugar:</strong> {{ item.actividad?.lugar_actividad?.[0]?.descripcion || item.lugar_actividad?.[0]?.descripcion }}
+            </p>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- SECCIÓN CARRUSEL DE ACTIVIDADES (ALUMNO) -->
+    <div class="section-title ion-padding-horizontal ion-margin-top">
+      <h2><ion-icon name="flame-outline" color="danger"></ion-icon> Actividades Destacadas</h2>
+    </div>
+
+    <div class="carrusel-wrapper ion-padding-horizontal">
+      <swiper-container
+        *ngIf="actividadesSlides.length > 0; else fallbackSlides"
+        class="home-swiper"
+        navigation="false"
+        pagination="true"
+        loop="true"
+        speed="700"
+        autoplay-delay="4000"
+        autoplay-disable-on-interaction="false"
+      >
+        <swiper-slide *ngFor="let act of actividadesSlides">
+          <div class="slide-card" [routerLink]="['/detalle-actividad', act.id_actividad]">
+            <img [src]="act.img_actv || 'assets/logo.png'" [alt]="act.nombre_actividad || 'Actividad estudiantil'" class="img-fit-contain">
+            <div class="slide-overlay">
+              <ion-badge color="warning" class="points-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
+                +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
+              </ion-badge>
+              <h3>{{ act.nombre_actividad || 'Actividad Estudiantil' }}</h3>
+              <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
+                <ion-icon name="location-outline"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
+              </p>
+            </div>
+          </div>
+        </swiper-slide>
+      </swiper-container>
+
+      <ng-template #fallbackSlides>
+        <swiper-container
+          class="home-swiper"
+          pagination="true"
+          loop="true"
+          speed="700"
+          autoplay-delay="4000"
+        >
+          <swiper-slide>
+            <div class="slide-card">
+              <img src="assets/logo.png" alt="Actividad 1" class="img-fit-contain">
+              <div class="slide-overlay">
+                <ion-badge color="primary" class="points-badge">Nuevos Eventos</ion-badge>
+                <h3>¡Inscríbete en las nuevas actividades!</h3>
+              </div>
+            </div>
+          </swiper-slide>
+        </swiper-container>
+      </ng-template>
+    </div>
+
+    <!-- MENÚ DE NAVEGACIÓN RÁPIDA (ALUMNO) -->
+    <div class="section-title ion-padding-horizontal">
+      <h2><ion-icon name="grid-outline" color="primary"></ion-icon> Menú Rápido</h2>
+    </div>
+
+    <ion-grid class="grid-home ion-padding-horizontal">
+      <ion-row>
+
+        <ion-col size="6">
+          <ion-card class="card-action card-puntos" [routerLink]="estaLogueado ? ['/perfil'] : ['/login']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-star">
+                <ion-icon name="star"></ion-icon>
+              </div>
+              <h3>Mis Puntos</h3>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <ion-col size="6">
+          <ion-card class="card-action card-actividades" [routerLink]="['/inscribir-actividad']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-walk">
+                <ion-icon name="walk"></ion-icon>
+              </div>
+              <h3>Actividades</h3>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <ion-col size="6">
+          <ion-card class="card-action card-premios" [routerLink]="['/mis-premios']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-gift">
+                <ion-icon name="gift"></ion-icon>
+              </div>
+              <h3>Mis Premios</h3>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <ion-col size="6">
+          <ion-card class="card-action card-canje" [routerLink]="estaLogueado ? ['/canjear'] : ['/login']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-swap">
+                <ion-icon name="swap-horizontal"></ion-icon>
+              </div>
+              <h3>Canjear</h3>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+      </ion-row>
+    </ion-grid>
+
+    <!-- BANNER MOTIVACIONAL -->
+    <div class="banner-tip ion-padding-horizontal">
+      <div class="tip-card">
+        <div class="tip-icon">
+          <ion-icon name="sparkles"></ion-icon>
         </div>
-      </ion-card-content>
-    </ion-card>
+        <div class="tip-text">
+          <h4>¿Cómo sumar puntos?</h4>
+          <p>Asiste a los talleres y eventos de tu sede para acumular puntos canjeables.</p>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <!-- ==================== ESTADO 2: VISITANTE / NO LOGUEADO ==================== -->
+  <!-- ========================================================================= -->
+  <!-- VISTA 2: DOCENTE (*ngIf="esDocente()")                                     -->
+  <!-- ========================================================================= -->
+  <div *ngIf="esDocente()">
+
+    <!-- TARJETA HERO DEL DOCENTE -->
+    <div class="user-hero-card" *ngIf="estaLogueado; else guestHero">
+      <div class="hero-content">
+        <div class="user-welcome">
+          <div class="header-user-row">
+            <ion-badge color="tertiary" class="badge-nivel">
+              <ion-icon name="briefcase-outline"></ion-icon> Docente
+            </ion-badge>
+          </div>
+          <h1>¡Hola, {{ nombreAlumno }}! 👋</h1>
+          <p>Panel de Gestión - Supervisión de actividades y entregas de canjes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- MENÚ DE NAVEGACIÓN RÁPIDA (DOCENTE) -->
+    <div class="section-title ion-padding-horizontal ion-margin-top">
+      <h2><ion-icon name="grid-outline" color="primary"></ion-icon> Panel de Administración</h2>
+    </div>
+
+    <ion-grid class="grid-home ion-padding-horizontal">
+      <ion-row>
+
+        <!-- BÓVEDA / ADMINISTRAR ACTIVIDADES -->
+        <ion-col size="6">
+          <ion-card class="card-action card-actividades" [routerLink]="['/admin-actividades']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-walk">
+                <ion-icon name="options-outline"></ion-icon>
+              </div>
+              <h3>Administrar Actividades</h3>
+              <span class="subtext">Gestión y asistencia</span>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+        <!-- ADMINISTRAR CANJES -->
+        <ion-col size="6">
+          <ion-card class="card-action card-canje" [routerLink]="['/admin-canjes']">
+            <ion-card-content class="card-home">
+              <div class="icon-avatar gradient-swap">
+                <ion-icon name="ticket-outline"></ion-icon>
+              </div>
+              <h3>Administrar Canjes</h3>
+              <span class="subtext">Entrega de premios</span>
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+
+      </ion-row>
+    </ion-grid>
+
+    <!-- BANNER DE INFORMACIÓN PARA DOCENTE -->
+    <div class="banner-tip ion-padding-horizontal">
+      <div class="tip-card">
+        <div class="tip-icon">
+          <ion-icon name="information-circle-outline"></ion-icon>
+        </div>
+        <div class="tip-text">
+          <h4>Rol Docente</h4>
+          <p>Puedes validar asistencias a tus talleres y marcar la entrega de premios canjeados por los alumnos.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== ESTADO: VISITANTE / NO LOGUEADO ==================== -->
   <ng-template #guestHero>
     <div class="user-hero-card guest-card">
       <div class="hero-content ion-text-center">
@@ -70,7 +270,7 @@
           <ion-icon name="person-circle-outline"></ion-icon>
         </div>
         <h1>¡Bienvenido a Aquí Todos Ganan! 🚀</h1>
-        <p>Inicia sesión para revisar tus puntos, postular a talleres y canjear tus premios.</p>
+        <p>Inicia sesión para acceder a tu panel correspondiente.</p>
         
         <div class="guest-buttons ion-margin-top">
           <ion-button expand="block" color="secondary" [routerLink]="['/login']" class="btn-login-hero">
@@ -81,135 +281,6 @@
       </div>
     </div>
   </ng-template>
-
-  <!-- SECCIÓN CARRUSEL DE ACTIVIDADES -->
-  <div class="section-title ion-padding-horizontal ion-margin-top">
-    <h2><ion-icon name="flame-outline" color="danger"></ion-icon> Actividades Destacadas</h2>
-  </div>
-
-  <div class="carrusel-wrapper">
-    <swiper-container
-      *ngIf="actividadesSlides.length > 0; else fallbackSlides"
-      class="home-swiper"
-      navigation="false"
-      pagination="true"
-      loop="true"
-      speed="700"
-      autoplay-delay="4000"
-      autoplay-disable-on-interaction="false"
-    >
-      <swiper-slide *ngFor="let act of actividadesSlides">
-        <div class="slide-card" [routerLink]="['/detalle-actividad', act.id_actividad]">
-          <img [src]="act.img_actv || 'assets/slide1.jpg'" [alt]="act.nombre_actividad || 'Actividad estudiantil'">
-          <div class="slide-overlay">
-            <ion-badge color="warning" class="points-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
-              +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
-            </ion-badge>
-            <h3>{{ act.nombre_actividad || 'Actividad Estudiantil' }}</h3>
-            <p *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
-              <ion-icon name="location-outline"></ion-icon> {{ act.lugar_actividad[0]?.descripcion }}
-            </p>
-          </div>
-        </div>
-      </swiper-slide>
-    </swiper-container>
-
-    <ng-template #fallbackSlides>
-      <swiper-container
-        class="home-swiper"
-        pagination="true"
-        loop="true"
-        speed="700"
-        autoplay-delay="4000"
-      >
-        <swiper-slide>
-          <div class="slide-card">
-            <img src="assets/slide1.jpg" alt="Actividad 1">
-            <div class="slide-overlay">
-              <ion-badge color="primary">Nuevos Eventos</ion-badge>
-              <h3>¡Inscríbete en las nuevas actividades!</h3>
-            </div>
-          </div>
-        </swiper-slide>
-      </swiper-container>
-    </ng-template>
-  </div>
-
-  <!-- MENÚ DE NAVEGACIÓN RÁPIDA -->
-  <div class="section-title ion-padding-horizontal">
-    <h2><ion-icon name="grid-outline" color="primary"></ion-icon> Menú Rápido</h2>
-  </div>
-
-  <ion-grid class="grid-home ion-padding-horizontal">
-    <ion-row>
-
-      <!-- TARJETA 1: MIS PUNTOS -->
-      <ion-col size="6">
-        <ion-card class="card-action card-puntos" [routerLink]="estaLogueado ? ['/puntos'] : ['/login']">
-          <ion-card-content class="card-home">
-            <div class="icon-avatar gradient-star">
-              <ion-icon name="star"></ion-icon>
-            </div>
-            <h3>Mis Puntos</h3>
-            <span class="subtext">{{ estaLogueado ? 'Historial y estado' : 'Ingresa para ver' }}</span>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-
-      <!-- TARJETA 2: ACTIVIDADES -->
-      <ion-col size="6">
-        <ion-card class="card-action card-actividades" [routerLink]="['/actividades']">
-          <ion-card-content class="card-home">
-            <div class="icon-avatar gradient-walk">
-              <ion-icon name="walk"></ion-icon>
-            </div>
-            <h3>Actividades</h3>
-            <span class="subtext">{{ totalActividades }} disponibles</span>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-
-      <!-- TARJETA 3: PREMIOS -->
-      <ion-col size="6">
-        <ion-card class="card-action card-premios" [routerLink]="['/premios']">
-          <ion-card-content class="card-home">
-            <div class="icon-avatar gradient-gift">
-              <ion-icon name="gift"></ion-icon>
-            </div>
-            <h3>Premios</h3>
-            <span class="subtext">{{ totalPremios }} en catálogo</span>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-
-      <!-- TARJETA 4: CANJEAR -->
-      <ion-col size="6">
-        <ion-card class="card-action card-canje" [routerLink]="estaLogueado ? ['/canje'] : ['/login']">
-          <ion-card-content class="card-home">
-            <div class="icon-avatar gradient-swap">
-              <ion-icon name="swap-horizontal"></ion-icon>
-            </div>
-            <h3>Canjear</h3>
-            <span class="subtext">Solicitar premio</span>
-          </ion-card-content>
-        </ion-card>
-      </ion-col>
-
-    </ion-row>
-  </ion-grid>
-
-  <!-- BANNER MOTIVACIONAL -->
-  <div class="banner-tip ion-padding-horizontal">
-    <div class="tip-card">
-      <div class="tip-icon">
-        <ion-icon name="sparkles"></ion-icon>
-      </div>
-      <div class="tip-text">
-        <h4>¿Cómo sumar puntos?</h4>
-        <p>Asiste a los talleres y eventos de tu sede para acumular puntos canjeables.</p>
-      </div>
-    </div>
-  </div>
 
   <app-footer></app-footer>
 </ion-content>

@@ -15,7 +15,7 @@
           <div *ngIf="!usuario?.imagen" class="avatar-placeholder">
             <ion-icon name="person"></ion-icon>
           </div>
-          <!-- Ícono flotante de la cámara en la esquina inferior derecha -->
+          <!-- Ícono flotante de la cámara -->
           <div class="camera-badge">
             <ion-icon name="camera"></ion-icon>
           </div>
@@ -127,16 +127,30 @@
       <ion-list class="info-list">
         <ion-item class="info-item">
           <ion-icon name="location-outline" slot="start" color="primary"></ion-icon>
-          <ion-input label="Dirección" labelPlacement="stacked" [(ngModel)]="perfilForm.direccion" name="direccion" placeholder="Ingresa tu dirección"></ion-input>
+          <ion-input 
+            label="Dirección" 
+            labelPlacement="stacked" 
+            [(ngModel)]="perfilForm.direccion" 
+            name="direccion" 
+            placeholder="Ej: Av. Concha y Toro 1340">
+          </ion-input>
         </ion-item>
 
         <ion-item class="info-item">
           <ion-icon name="call-outline" slot="start" color="primary"></ion-icon>
-          <ion-input label="Teléfono" labelPlacement="stacked" type="tel" [(ngModel)]="perfilForm.telefono" name="telefono" placeholder="Ingresa tu teléfono"></ion-input>
+          <ion-input 
+            label="Teléfono" 
+            labelPlacement="stacked" 
+            type="tel" 
+            maxlength="12"
+            [(ngModel)]="perfilForm.telefono" 
+            name="telefono" 
+            placeholder="Ej: 912345678 o +56912345678">
+          </ion-input>
         </ion-item>
       </ion-list>
 
-      <ion-button expand="block" type="submit" color="primary" class="save-btn" [disabled]="guardando">
+      <ion-button expand="block" type="submit" color="primary" class="save-btn ion-margin-top" [disabled]="guardando">
         <ion-spinner *ngIf="guardando" name="crescent"></ion-spinner>
         <span *ngIf="!guardando">Guardar Cambios</span>
       </ion-button>
@@ -157,10 +171,15 @@
     <ion-card *ngIf="mostrarCambiarPassword" class="canje-card margin-bottom-card security-card">
       <ion-card-header>
         <ion-card-title>Nueva Contraseña</ion-card-title>
-        <ion-card-subtitle>Ingresa tu nueva clave de acceso para actualizarla</ion-card-subtitle>
+        <ion-card-subtitle>Crea una contraseña segura para tu cuenta</ion-card-subtitle>
       </ion-card-header>
 
       <ion-card-content>
+        <!-- Requisitos de contraseña -->
+        <ion-note color="medium" style="display: block; margin-bottom: 12px; font-size: 0.82rem;">
+          💡 <strong>La contraseña debe tener:</strong> al menos 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (ej: @, #, $, !).
+        </ion-note>
+
         <form (ngSubmit)="cambiarPassword()">
           <ion-list lines="none" class="info-list">
 
@@ -173,7 +192,7 @@
                 [type]="verNuevaPassword ? 'text' : 'password'" 
                 [(ngModel)]="passwordForm.nueva_password" 
                 name="nueva_password" 
-                placeholder="Mínimo 6 caracteres">
+                placeholder="Ingresa tu nueva clave">
               </ion-input>
               <ion-button fill="clear" slot="end" class="eye-btn" (click)="toggleVerNuevaPassword()" type="button">
                 <ion-icon slot="icon-only" [name]="verNuevaPassword ? 'eye-off-outline' : 'eye-outline'" color="medium"></ion-icon>
@@ -189,7 +208,7 @@
                 [type]="verConfirmarPassword ? 'text' : 'password'" 
                 [(ngModel)]="passwordForm.confirmar_password" 
                 name="confirmar_password" 
-                placeholder="Repite la nueva clave">
+                placeholder="Repite tu nueva clave">
               </ion-input>
               <ion-button fill="clear" slot="end" class="eye-btn" (click)="toggleVerConfirmarPassword()" type="button">
                 <ion-icon slot="icon-only" [name]="verConfirmarPassword ? 'eye-off-outline' : 'eye-outline'" color="medium"></ion-icon>
