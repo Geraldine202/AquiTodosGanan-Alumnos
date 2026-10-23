@@ -55,19 +55,42 @@
             <ion-badge color="warning" class="pts-badge">
               +{{ act.puntos }} Pts
             </ion-badge>
-            <span class="fecha-txt">
-              <ion-icon name="time-outline"></ion-icon> 
-              {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Por definir' }} {{ act.hora_inicio ? '(' + act.hora_inicio.slice(0,5) + ' hrs)' : '' }}
-            </span>
           </div>
           <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content class="card-footer-content">
-          <p class="lugar-txt" (click)="verDetalle(act.id_actividad)">
-            <ion-icon name="location-outline" color="primary"></ion-icon> 
-            {{ act.lugar }}
+          <!-- DESCRIPCIÓN CORTA -->
+          <p class="ion-margin-bottom" *ngIf="act.descripcion" (click)="verDetalle(act.id_actividad)">
+            {{ act.descripcion }}
           </p>
+
+          <!-- DETALLES: SEDE, LUGAR, FECHA Y HORARIOS -->
+          <div class="detalles-grid" (click)="verDetalle(act.id_actividad)" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+            <p class="lugar-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="business-outline" color="primary"></ion-icon> 
+              <span><strong>Sede:</strong> {{ act.sede_nombre || 'Sede principal' }}</span>
+            </p>
+
+            <p class="lugar-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="location-outline" color="primary"></ion-icon> 
+              <span><strong>Lugar / Sala:</strong> {{ act.lugar }}</span>
+            </p>
+
+            <p class="fecha-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="calendar-outline" color="primary"></ion-icon> 
+              <span><strong>Fecha:</strong> {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Por definir' }}</span>
+            </p>
+
+            <p class="fecha-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="time-outline" color="primary"></ion-icon> 
+              <span>
+                <strong>Horario:</strong> 
+                De {{ act.hora_inicio_fmt || (act.hora_inicio ? act.hora_inicio.slice(0,5) + ' hrs' : 'Por definir') }} 
+                a {{ act.hora_termino_fmt || (act.hora_termino ? act.hora_termino.slice(0,5) + ' hrs' : 'Por definir') }}
+              </span>
+            </p>
+          </div>
 
           <ion-badge color="success" mode="ios" *ngIf="act.presente; else btnCancelar">
             <ion-icon name="checkmark-done-circle-outline"></ion-icon> 
@@ -118,19 +141,37 @@
             <ion-badge color="success" class="pts-badge">
               +{{ act.puntos }} Pts Ganados
             </ion-badge>
-            <span class="fecha-txt">
-              <ion-icon name="checkmark-done-outline" color="success"></ion-icon> 
-              {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Realizada' }}
-            </span>
           </div>
           <ion-card-title>{{ act.nombre_actividad }}</ion-card-title>
         </ion-card-header>
 
         <ion-card-content>
-          <p class="lugar-txt" (click)="verDetalle(act.id_actividad)">
-            <ion-icon name="location-outline" color="medium"></ion-icon> 
-            {{ act.lugar }}
-          </p>
+          <!-- DETALLES DEL HISTORIAL -->
+          <div class="detalles-grid" (click)="verDetalle(act.id_actividad)" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+            <p class="lugar-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="business-outline" color="medium"></ion-icon> 
+              <span><strong>Sede:</strong> {{ act.sede_nombre || 'Sede principal' }}</span>
+            </p>
+
+            <p class="lugar-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="location-outline" color="medium"></ion-icon> 
+              <span><strong>Lugar / Sala:</strong> {{ act.lugar }}</span>
+            </p>
+
+            <p class="fecha-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="calendar-outline" color="medium"></ion-icon> 
+              <span><strong>Fecha:</strong> {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Realizada' }}</span>
+            </p>
+
+            <p class="fecha-txt" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+              <ion-icon name="time-outline" color="medium"></ion-icon> 
+              <span>
+                <strong>Horario:</strong> 
+                De {{ act.hora_inicio_fmt || (act.hora_inicio ? act.hora_inicio.slice(0,5) + ' hrs' : 'Realizada') }} 
+                a {{ act.hora_termino_fmt || (act.hora_termino ? act.hora_termino.slice(0,5) + ' hrs' : 'Realizada') }}
+              </span>
+            </p>
+          </div>
 
           <!-- ACCIONES DEL HISTORIAL: CERTIFICADO Y EVALUACIÓN -->
           <div class="acciones-historial ion-margin-top" (click)="$event.stopPropagation()">
@@ -163,7 +204,7 @@
               <div class="estrellas-guardadas" style="display: flex; gap: 2px;">
                 <ion-icon 
                   *ngFor="let e of [1, 2, 3, 4, 5]" 
-                  [name]="e <= (+act.calificacion || 0) ? 'star' : 'star-outline'" 
+                  [name]="e <= (act.calificacion || 0) ? 'star' : 'star-outline'" 
                   style="color: #ffc409; font-size: 1.1rem;">
                 </ion-icon>
               </div>

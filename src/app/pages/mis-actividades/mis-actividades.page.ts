@@ -68,6 +68,18 @@ export class MisActividadesPage implements OnInit, OnDestroy {
   }
 
   /**
+   * Helper para formatear cadenas de hora de "HH:mm:ss" a "HH:mm hrs"
+   */
+  formatearHora(hora: string): string {
+    if (!hora) return 'Por definir';
+    const partes = String(hora).split(':');
+    if (partes.length >= 2) {
+      return `${partes[0]}:${partes[1]} hrs`;
+    }
+    return String(hora);
+  }
+
+  /**
    * Obtiene el RUT o identificador del usuario buscando únicamente en sessionStorage
    */
   private obtenerRutSesion(): string {
@@ -80,10 +92,10 @@ export class MisActividadesPage implements OnInit, OnDestroy {
           try {
             const obj = JSON.parse(val);
             const rut = obj.rut_usuario || obj.rut || obj.rut_alumno || obj.correo;
-            if (rut) return String(rut).replace(/\./g, '').trim();
+            if (rut) return String(rut).replace(/[^0-9kK]/g, '').trim();
           } catch (e) {}
         } else {
-          return String(val).replace(/\./g, '').trim();
+          return String(val).replace(/[^0-9kK]/g, '').trim();
         }
       }
     }
@@ -156,7 +168,7 @@ export class MisActividadesPage implements OnInit, OnDestroy {
 
     // 1. Obtener Puntaje Total
     this.actividadService.getPuntajeTotal(rutParam).subscribe({
-      next: (res: any) => this.puntajeTotal = res?.puntaje ?? 0,
+      next: (res: any) => this.puntajeTotal = Number(res?.puntaje_total ?? res?.puntaje ?? 0),
       error: () => this.puntajeTotal = 0
     });
 
@@ -183,19 +195,24 @@ export class MisActividadesPage implements OnInit, OnDestroy {
                 lugarNombre = act.lugar;
               }
 
+              const sedeNombre = act.sede?.nombre_sede || act.nombre_sede || act.sede || 'Sede principal';
+
               const puntosGanados = inscripcion.puntos_ganados ?? 0;
+
+              const encuestaObj = Array.isArray(inscripcion.encuesta) 
+                ? inscripcion.encuesta[0] 
+                : (inscripcion.encuesta || act.encuesta || {});
 
               const calificacionVal = Number(
                 inscripcion.calificacion ?? 
                 act.calificacion ?? 
-                (Array.isArray(inscripcion.encuesta) ? inscripcion.encuesta[0]?.calificacion : inscripcion.encuesta?.calificacion) ?? 
+                encuestaObj?.calificacion ?? 
                 0
               );
 
               const encuestaRespondida = 
-                inscripcion.encuesta_respondida === true || 
-                act.encuesta_respondida === true || 
-                (Array.isArray(inscripcion.encuesta) && inscripcion.encuesta.length > 0) ||
+                Boolean(inscripcion.encuesta_respondida || act.encuesta_respondida) || 
+                Boolean(encuestaObj?.id_encuesta) ||
                 calificacionVal > 0;
 
               const estaPresente = Boolean(
@@ -205,7 +222,7 @@ export class MisActividadesPage implements OnInit, OnDestroy {
               );
 
               const objetoActividad = {
-                id_actividad: act.id_actividad,
+                id_actividad: Number(act.id_actividad),
                 id_inscripcion: Number(inscripcion.id_inscripcion ?? act.id_inscripcion ?? 0),
                 nombre_actividad: act.nombre_actividad || act.nombre,
                 descripcion: act.descripcion,
@@ -213,8 +230,11 @@ export class MisActividadesPage implements OnInit, OnDestroy {
                 fecha: act.fecha,
                 hora_inicio: act.hora_inicio,
                 hora_termino: act.hora_termino,
+                hora_inicio_fmt: this.formatearHora(act.hora_inicio),
+                hora_termino_fmt: this.formatearHora(act.hora_termino),
                 puntos: puntosGanados || (act.puntaje_act?.[0]?.cantidad ?? act.puntos ?? 0),
                 lugar: lugarNombre,
+                sede_nombre: sedeNombre,
                 presente: estaPresente,
                 encuesta_respondida: encuestaRespondida,
                 calificacion: calificacionVal
@@ -247,20 +267,22 @@ export class MisActividadesPage implements OnInit, OnDestroy {
         if (Array.isArray(completadas) && completadas.length > 0) {
           completadas.forEach((item: any) => {
             const act = item.actividad || item;
-            const idAct = act.id_actividad;
+            const idAct = Number(act.id_actividad);
 
-            const coincidenciaProxima = this.actividadesProximas.find((a) => a.id_actividad === idAct);
-            const coincidenciaHistorial = this.actividadesHistorial.find((a) => a.id_actividad === idAct);
+            const coincidenciaProxima = this.actividadesProximas.find((a) => Number(a.id_actividad) === idAct);
+            const coincidenciaHistorial = this.actividadesHistorial.find((a) => Number(a.id_actividad) === idAct);
 
             const califVal = Number(item.calificacion ?? 0);
             const esRespondida = Boolean(item.encuesta_respondida) || califVal > 0;
             const estaPresente = Boolean(item.asistencia === true || item.presente === true);
 
             if (coincidenciaHistorial) {
-              coincidenciaHistorial.encuesta_respondida = esRespondida;
-              coincidenciaHistorial.calificacion = califVal;
-              coincidenciaHistorial.presente = estaPresente;
-              if (item.id_inscripcion) {
+              if (esRespondida || califVal > 0) {
+                coincidenciaHistorial.encuesta_respondida = true;
+                coincidenciaHistorial.calificacion = Math.max(coincidenciaHistorial.calificacion || 0, califVal);
+              }
+              coincidenciaHistorial.presente = coincidenciaHistorial.presente || estaPresente;
+              if (item.id_inscripcion && !coincidenciaHistorial.id_inscripcion) {
                 coincidenciaHistorial.id_inscripcion = Number(item.id_inscripcion);
               }
             } else if (!coincidenciaProxima && estaPresente) {
@@ -271,8 +293,10 @@ export class MisActividadesPage implements OnInit, OnDestroy {
                 lugarNombre = act.lugar;
               }
 
+              const sedeNombre = act.sede?.nombre_sede || act.nombre_sede || act.sede || 'Sede principal';
+
               this.actividadesHistorial.push({
-                id_actividad: act.id_actividad,
+                id_actividad: idAct,
                 id_inscripcion: Number(item.id_inscripcion ?? act.id_inscripcion ?? 0),
                 nombre_actividad: act.nombre_actividad || act.nombre,
                 descripcion: act.descripcion,
@@ -280,8 +304,11 @@ export class MisActividadesPage implements OnInit, OnDestroy {
                 fecha: act.fecha,
                 hora_inicio: act.hora_inicio,
                 hora_termino: act.hora_termino,
+                hora_inicio_fmt: this.formatearHora(act.hora_inicio),
+                hora_termino_fmt: this.formatearHora(act.hora_termino),
                 puntos: item.puntos_ganados || item.puntos || 0,
                 lugar: lugarNombre,
+                sede_nombre: sedeNombre,
                 presente: true,
                 encuesta_respondida: esRespondida,
                 calificacion: califVal
@@ -290,9 +317,6 @@ export class MisActividadesPage implements OnInit, OnDestroy {
           });
         }
 
-        // =========================================================================
-        // ORDENAMIENTO DESCENDENTE: La última inscripción efectuada va primero
-        // =========================================================================
         this.actividadesProximas.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
         this.actividadesHistorial.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
 
@@ -303,7 +327,6 @@ export class MisActividadesPage implements OnInit, OnDestroy {
       error: (err: any) => {
         console.warn('Error al complementar con actividades completadas:', err);
 
-        // ORDENAMIENTO DE RESPALDO SI FALLA COMPLEMENTAR
         this.actividadesProximas.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
         this.actividadesHistorial.sort((a, b) => (b.id_inscripcion || b.id_actividad) - (a.id_inscripcion || a.id_actividad));
 
@@ -329,35 +352,52 @@ export class MisActividadesPage implements OnInit, OnDestroy {
       return;
     }
 
+    const rutUsuario = this.obtenerRutSesion();
+    if (!rutUsuario) {
+      this.mostrarToast('No se encontró la sesión del usuario.', 'warning');
+      return;
+    }
+
     this.enviandoEncuesta = true;
 
     const payload = {
-      id_actividad: this.actividadEncuestaSeleccionada.id_actividad,
-      id_inscripcion: this.actividadEncuestaSeleccionada.id_inscripcion,
-      calificacion: this.calificacionEncuesta,
-      comentario: this.comentarioEncuesta
+      rut_usuario: rutUsuario,
+      id_actividad: Number(this.actividadEncuestaSeleccionada.id_actividad),
+      id_inscripcion: Number(this.actividadEncuestaSeleccionada.id_inscripcion || 0),
+      calificacion: Number(this.calificacionEncuesta),
+      comentario: String(this.comentarioEncuesta || '').trim()
     };
 
     this.actividadService.responderEncuesta(payload).subscribe({
-      next: () => {
+      next: (res: any) => {
         this.enviandoEncuesta = false;
-        this.mostrarToast('¡Gracias por evaluar esta actividad!', 'success');
+        this.mostrarToast(res?.mensaje || res?.message || '¡Gracias por evaluar esta actividad!', 'success');
+
+        const notaNumerica = Number(this.calificacionEncuesta);
 
         const itemHistorial = this.actividadesHistorial.find(
-          (a) => a.id_actividad === this.actividadEncuestaSeleccionada.id_actividad
+          (a) => Number(a.id_actividad) === Number(this.actividadEncuestaSeleccionada.id_actividad)
         );
 
         if (itemHistorial) {
           itemHistorial.encuesta_respondida = true;
-          itemHistorial.calificacion = this.calificacionEncuesta;
+          itemHistorial.calificacion = notaNumerica;
+        }
+
+        if (this.actividadEncuestaSeleccionada) {
+          this.actividadEncuestaSeleccionada.encuesta_respondida = true;
+          this.actividadEncuestaSeleccionada.calificacion = notaNumerica;
         }
 
         modal.dismiss();
+        this.cdRef.detectChanges();
       },
       error: (err: any) => {
         this.enviandoEncuesta = false;
-        const msg = err.error?.detail || 'Error al enviar la encuesta.';
+        console.error('Error al responder encuesta:', err);
+        const msg = err.error?.detail || err.error?.message || err.error?.error || 'Error al enviar la encuesta.';
         this.mostrarToast(msg, 'danger');
+        this.cdRef.detectChanges();
       }
     });
   }
@@ -383,7 +423,7 @@ export class MisActividadesPage implements OnInit, OnDestroy {
         {
           text: 'Enviar Certificado',
           handler: () => {
-            this.ejecutarEnvioCertificado(rutUsuario, act.id_actividad);
+            this.ejecutarEnvioCertificado(rutUsuario, Number(act.id_actividad));
           }
         }
       ]
@@ -399,20 +439,24 @@ export class MisActividadesPage implements OnInit, OnDestroy {
     });
     await loader.present();
 
+    const correoUsuario = this.obtenerCorreoEstudiante();
+
     const payload = {
       rut_usuario: rutUsuario,
-      id_actividad: idActividad
+      rut: rutUsuario,
+      id_actividad: Number(idActividad),
+      correo: correoUsuario || undefined
     };
 
     this.actividadService.enviarCertificadoCorreo(payload).subscribe({
       next: (res: any) => {
         loader.dismiss();
-        this.mostrarToast(res?.message || 'Certificado enviado a tu correo con éxito.', 'success');
+        this.mostrarToast(res?.message || res?.mensaje || 'Certificado enviado a tu correo con éxito.', 'success');
       },
       error: (err: any) => {
         loader.dismiss();
         console.error('Error al enviar el certificado:', err);
-        const msg = err.error?.detail || 'Ocurrió un error al enviar el certificado.';
+        const msg = err.error?.detail || err.error?.message || err.error?.error || 'Ocurrió un error al enviar el certificado.';
         this.mostrarToast(msg, 'danger');
       }
     });
@@ -437,8 +481,8 @@ export class MisActividadesPage implements OnInit, OnDestroy {
   async salirDeActividad(event: Event, idActividad: number) {
     event.stopPropagation();
 
-    const actividad = this.actividadesProximas.find(a => a.id_actividad === idActividad) 
-                   || this.actividadesHistorial.find(a => a.id_actividad === idActividad);
+    const actividad = this.actividadesProximas.find(a => Number(a.id_actividad) === Number(idActividad)) 
+                   || this.actividadesHistorial.find(a => Number(a.id_actividad) === Number(idActividad));
 
     if (actividad && actividad.presente) {
       const alertBloqueo = await this.alertController.create({
@@ -476,7 +520,7 @@ export class MisActividadesPage implements OnInit, OnDestroy {
                 console.error('Error al salir de la actividad:', err);
                 this.cargando = false;
 
-                const mensajeError = err.error?.detail || 'No se pudo cancelar la inscripción.';
+                const mensajeError = err.error?.detail || err.error?.message || 'No se pudo cancelar la inscripción.';
 
                 const alertError = await this.alertController.create({
                   header: 'Error',
@@ -497,4 +541,4 @@ export class MisActividadesPage implements OnInit, OnDestroy {
   cambiarSegmento(event: any) {
     this.segmentoSeleccionado = event.detail.value;
   }
-} 
+}

@@ -1,7 +1,10 @@
 <ion-header class="ion-no-border">
   <ion-toolbar class="toolbar-duoc">
     <ion-buttons slot="start">
-      <ion-back-button defaultHref="/login" class="btn-menu-blanco"></ion-back-button>
+      <!-- Invocamos volverAlPaso1() si el usuario decide volver usando el botón del header -->
+      <ion-button (click)="volverAlPaso1()" class="btn-menu-blanco">
+        <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
+      </ion-button>
     </ion-buttons>
     <ion-title style="color: #ffffff; font-size: 1rem;">Recuperar Contraseña</ion-title>
   </ion-toolbar>
@@ -141,10 +144,11 @@
             Cambiar Contraseña
           </ion-button>
           
+          <!-- BOTÓN VOLVER A INTENTAR: AHORA LLAMA A volverAlPaso1() -->
           <ion-button 
             expand="block" 
             fill="clear" 
-            (click)="paso = 1"
+            (click)="volverAlPaso1()"
             class="btn-retry">
             Volver a intentar con otro correo
           </ion-button>

@@ -212,6 +212,8 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         this.esAdmin = (tipoUser === 2);
         this.esConsejero = (tipoUser === 3 || tipoUser === 4);
 
+        this.limpiarFormulario();
+
         if (this.listaActividades.length > 0) {
           this.filtrarActividades();
         }
@@ -293,7 +295,12 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
   cargarActividades() {
     this.actividadService.getActividades().subscribe({
       next: (data: any) => {
-        this.listaActividades = Array.isArray(data) ? data : (data?.data || []);
+        const lista = Array.isArray(data) ? data : (data?.data || []);
+        this.listaActividades = lista.sort((a: any, b: any) => {
+          const idA = Number(a.id_actividad || a.id || 0);
+          const idB = Number(b.id_actividad || b.id || 0);
+          return idB - idA;
+        });
         this.filtrarActividades();
       },
       error: () => this.mostrarToast('Error al cargar la lista de actividades', 'danger')
@@ -356,7 +363,7 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
 
   filtrarActividades() {
     const q = this.busquedaActividad ? this.busquedaActividad.toLowerCase().trim() : '';
-    const rutUsuarioStorage = localStorage.getItem('rut_usuario') || localStorage.getItem('rut') || '';
+    const rutUsuarioStorage = localStorage.getItem('rut_usuario') || localStorage.getItem('rut') || sessionStorage.getItem('rut_usuario') || '';
     const rutSesionRaw = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut || rutUsuarioStorage || '';
     const rutSesion = this.normalizarRut(rutSesionRaw);
 
@@ -391,9 +398,9 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
                 this.mostrarToast('Actividad puesta En Curso exitosamente', 'success');
                 this.cargarActividades();
               },
-              error: (err) => {
+              error: async (err) => {
                 const msg = err.error?.detail || 'No se pudo iniciar la actividad.';
-                this.mostrarToast(msg, 'danger');
+                await this.mostrarAlerta('Error al Iniciar', msg);
               }
             });
           }
@@ -417,9 +424,9 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
                 this.mostrarToast('Actividad finalizada, puntos liquidados y participación actualizada.', 'success');
                 this.cargarActividades();
               },
-              error: (err) => {
+              error: async (err) => {
                 const msg = err.error?.detail || 'No se pudo finalizar la actividad.';
-                this.mostrarToast(msg, 'danger');
+                await this.mostrarAlerta('Error al Finalizar', msg);
               }
             });
           }
@@ -446,7 +453,6 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         this.cargandoInscritos = false;
         const estudiantesRaw = res.estudiantes || [];
         
-        // Carga alumnos garantizando que por defecto comiencen desmarcados (Ausente)
         this.listaEstudiantesInscritos = estudiantesRaw.map((est: any) => ({
           rut: est.rut || est.rut_usuario || 'S/R',
           rut_usuario: est.rut_usuario || est.rut || 'S/R',
@@ -515,7 +521,7 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         if (this.modalDetalles) this.modalDetalles.dismiss();
         this.cargarActividades();
       },
-      error: (err: any) => {
+      error: async (err: any) => {
         this.cargandoAsistencia = false;
         let msg = 'Error al registrar la asistencia';
         if (err.status === 422 && Array.isArray(err.error?.detail)) {
@@ -525,7 +531,7 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         } else if (err.error?.detail) {
           msg = err.error.detail;
         }
-        this.mostrarToast(msg, 'danger');
+        await this.mostrarAlerta('Error de Asistencia', msg);
       }
     });
   }
@@ -602,22 +608,30 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
   }
 
   limpiarFormulario() {
-    const rutSesion = this.usuarioLogueado?.rut_usuario || localStorage.getItem('rut_usuario') || '';
-    let responsableNom = '';
+    const rutSesion = this.usuarioLogueado?.rut_usuario || 
+      this.usuarioLogueado?.rut || 
+      localStorage.getItem('rut_usuario') || 
+      sessionStorage.getItem('rut_usuario') || '';
 
-    if (this.esConsejero && this.usuarioLogueado) {
-      responsableNom = this.usuarioLogueado.nombre_completo || 
-        `${this.usuarioLogueado.p_nombre || ''} ${this.usuarioLogueado.p_apellido || ''}`.trim() || 'Responsable';
-    }
+    const nombreResponsable = this.usuarioLogueado?.nombre_completo || 
+      `${this.usuarioLogueado?.p_nombre || ''} ${this.usuarioLogueado?.p_apellido || ''}`.trim() || 
+      'Responsable';
+
+    const idSedeUsuario = Number(
+      this.usuarioLogueado?.id_sede ?? 
+      this.usuarioLogueado?.sede?.id_sede ?? 
+      localStorage.getItem('id_sede') ?? 
+      1
+    );
 
     this.formAgregar.reset({
       nombre_actividad: '',
       descripcion: '',
-      responsable_actividad: responsableNom,
+      responsable_actividad: nombreResponsable,
       rut_usuario: rutSesion,
       id_tipo_actividad: null,
       id_estado_actividad: 1,
-      id_sede: null,
+      id_sede: idSedeUsuario,
       fecha: '',
       hora_inicio: '',
       hora_termino: '',
@@ -627,6 +641,14 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
       requisito: '',
       img_actv: ''
     });
+
+    if (!this.esAdmin) {
+      this.formAgregar.get('responsable_actividad')?.disable();
+      this.formAgregar.get('id_sede')?.disable();
+    } else {
+      this.formAgregar.get('responsable_actividad')?.enable();
+      this.formAgregar.get('id_sede')?.enable();
+    }
   }
 
   private formatearFecha(fechaStr: string): string {
@@ -645,14 +667,17 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
   }
 
   private construirPayload(fValues: any): ActividadPayload {
+    const idSedeVal = Number(fValues.id_sede);
+    const idTipoVal = Number(fValues.id_tipo_actividad);
+
     return {
       nombre_actividad: fValues.nombre_actividad,
       descripcion: fValues.descripcion || 'Sin descripción',
       responsable_actividad: fValues.responsable_actividad || 'Por asignar',
-      rut_usuario: fValues.rut_usuario,
-      id_tipo_actividad: Number(fValues.id_tipo_actividad),
+      rut_usuario: fValues.rut_usuario || this.usuarioLogueado?.rut_usuario || '',
+      id_tipo_actividad: isNaN(idTipoVal) ? 1 : idTipoVal,
       id_estado_actividad: fValues.id_estado_actividad ? Number(fValues.id_estado_actividad) : 1,
-      id_sede: fValues.id_sede ? Number(fValues.id_sede) : 1,
+      id_sede: isNaN(idSedeVal) || idSedeVal === 0 ? 1 : idSedeVal,
       fecha: this.formatearFecha(fValues.fecha),
       hora_inicio: this.formatearHora(fValues.hora_inicio),
       hora_termino: this.formatearHora(fValues.hora_termino),
@@ -664,22 +689,29 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
     };
   }
 
-  guardarActividad(modal: IonModal) {
+  async guardarActividad(modal: IonModal) {
     if (this.formAgregar.invalid) {
       this.formAgregar.markAllAsTouched();
       this.mostrarToast('Por favor, verifique la fecha, horas y campos obligatorios (*)', 'warning');
       return;
     }
 
-    if (!this.esResponsableActivo(this.formAgregar.value.rut_usuario)) {
-      this.mostrarToast('El responsable seleccionado no posee una matrícula activa o se encuentra suspendido/retirado.', 'danger');
+    // Se extrae getRawValue() para incluir rut_usuario aunque esté disabled
+    const formValues = this.formAgregar.getRawValue();
+
+    // Si la lista de docentes aún no ha cargado, permite continuar; de lo contrario valida
+    if (this.listaDocentes.length > 0 && !this.esResponsableActivo(formValues.rut_usuario)) {
+      await this.mostrarAlerta(
+        'Responsable Inactivo', 
+        'El responsable seleccionado no posee una matrícula activa o se encuentra suspendido/retirado.'
+      );
       return;
     }
 
     if (this.cargandoGuardado) return;
 
     this.cargandoGuardado = true;
-    const payload = this.construirPayload(this.formAgregar.value);
+    const payload = this.construirPayload(formValues);
 
     this.actividadService.crearActividad(payload).subscribe({
       next: () => {
@@ -689,10 +721,16 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         modal.dismiss();
         this.limpiarFormulario();
       },
-      error: (err: any) => {
+      error: async (err: any) => {
         this.cargandoGuardado = false;
-        console.error('Error al crear:', err);
-        this.mostrarToast('Error al crear la actividad', 'danger');
+        console.error('Error al crear actividad:', err);
+
+        const mensajeBackend = typeof err.error?.detail === 'string'
+          ? err.error.detail
+          : (err.error?.message || err.error?.error || 'No fue posible registrar la actividad.');
+
+        // Despliega exclusivamente la Alerta emergente en pantalla
+        await this.mostrarAlerta('Conflicto o Error de Validación', mensajeBackend);
       }
     });
   }
@@ -704,12 +742,10 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
     }
 
     if (!esReprogramacion && this.tieneInscritos(act)) {
-      const alertBloqueo = await this.alertController.create({
-        header: 'Edición Denegada',
-        message: 'No puedes editar los datos de una actividad que ya cuenta con alumnos inscritos.',
-        buttons: ['Entendido']
-      });
-      await alertBloqueo.present();
+      await this.mostrarAlerta(
+        'Edición Denegada',
+        'No puedes editar los datos de una actividad que ya cuenta con alumnos inscritos.'
+      );
       return;
     }
 
@@ -740,25 +776,38 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
       img_actv: act.img_actv || ''
     });
 
+    if (!this.esAdmin) {
+      this.formEdicion.get('responsable_actividad')?.disable();
+      this.formEdicion.get('id_sede')?.disable();
+    } else {
+      this.formEdicion.get('responsable_actividad')?.enable();
+      this.formEdicion.get('id_sede')?.enable();
+    }
+
     modal.present();
   }
 
-  actualizarActividad(modal: IonModal) {
+  async actualizarActividad(modal: IonModal) {
     if (this.formEdicion.invalid) {
       this.formEdicion.markAllAsTouched();
       this.mostrarToast('Por favor, verifique la fecha, horas y campos obligatorios (*)', 'warning');
       return;
     }
 
-    if (!this.esResponsableActivo(this.formEdicion.value.rut_usuario)) {
-      this.mostrarToast('El responsable seleccionado no posee una matrícula activa o se encuentra suspendido/retirado.', 'danger');
+    const formValues = this.formEdicion.getRawValue();
+
+    if (this.listaDocentes.length > 0 && !this.esResponsableActivo(formValues.rut_usuario)) {
+      await this.mostrarAlerta(
+        'Responsable Inactivo', 
+        'El responsable seleccionado no posee una matrícula activa o se encuentra suspendido/retirado.'
+      );
       return;
     }
 
     if (!this.idActividadSeleccionada || this.cargandoGuardado) return;
 
     this.cargandoGuardado = true;
-    const payload = this.construirPayload(this.formEdicion.value);
+    const payload = this.construirPayload(formValues);
 
     if (this.modoReprogramacionModal) {
       payload.id_estado_actividad = 1;
@@ -778,11 +827,11 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
               this.cargarActividades();
               modal.dismiss();
             },
-            error: (errGen: any) => {
+            error: async (errGen: any) => {
               this.cargandoGuardado = false;
               console.error('Error al reprogramar:', errGen);
               const msg = errGen.error?.detail || err.error?.detail || 'Error al reprogramar la actividad.';
-              this.mostrarToast(msg, 'danger');
+              await this.mostrarAlerta('Conflicto o Error de Reprogramación', msg);
             }
           });
         }
@@ -796,11 +845,11 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
           this.cargarActividades();
           modal.dismiss();
         },
-        error: (err: any) => {
+        error: async (err: any) => {
           this.cargandoGuardado = false;
           console.error('Error al actualizar:', err);
           const msg = err.error?.detail || 'Error al actualizar la actividad';
-          this.mostrarToast(msg, 'danger');
+          await this.mostrarAlerta('Conflicto o Error de Actualización', msg);
         }
       });
     }
@@ -810,12 +859,10 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
     const actividadObj = typeof act === 'object' ? act : this.listaActividades.find(a => a.id_actividad === act);
 
     if (this.tieneInscritos(actividadObj)) {
-      const alertBloqueo = await this.alertController.create({
-        header: 'Acción Denegada',
-        message: 'No puedes eliminar esta actividad porque ya cuenta con alumnos inscritos.',
-        buttons: ['Entendido']
-      });
-      await alertBloqueo.present();
+      await this.mostrarAlerta(
+        'Acción Denegada',
+        'No puedes eliminar esta actividad porque ya cuenta con alumnos inscritos.'
+      );
       return;
     }
 
@@ -848,8 +895,20 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
         this.mostrarToast('Actividad eliminada correctamente', 'success');
         this.cargarActividades();
       },
-      error: () => this.mostrarToast('Error al eliminar la actividad', 'danger')
+      error: async (err: any) => {
+        const msg = err.error?.detail || 'Error al eliminar la actividad';
+        await this.mostrarAlerta('Error de Eliminación', msg);
+      }
     });
+  }
+
+  async mostrarAlerta(titulo: string, mensaje: string) {
+    const alert = await this.alertController.create({
+      header: titulo,
+      message: mensaje,
+      buttons: ['Entendido']
+    });
+    await alert.present();
   }
 
   async mostrarToast(mensaje: string, color: string) {
@@ -859,6 +918,6 @@ export class AdminActividadesPage implements OnInit, OnDestroy, ViewWillEnter, V
       color: color,
       position: 'bottom'
     });
-    toast.present();
+    await toast.present();
   }
 }

@@ -38,6 +38,8 @@ export class PerfilPage implements OnInit, OnDestroy {
   editando: boolean = false;
   guardando: boolean = false;
   archivoFoto: File | null = null;
+  imagenEliminada: boolean = false; // Control para remoción de foto existente
+
   perfilForm = {
     direccion: '',
     telefono: ''
@@ -65,7 +67,6 @@ export class PerfilPage implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit() {
-    // Escuchar estado de sesión en tiempo real
     this.subUsuario = this.alumnoService.usuario$.subscribe(usr => {
       if (!usr && !sessionStorage.getItem('usuarioLogueado')) {
         this.limpiarEstadoYSalir();
@@ -83,6 +84,10 @@ export class PerfilPage implements OnInit, OnDestroy {
     if (this.subUsuario) {
       this.subUsuario.unsubscribe();
     }
+  }
+
+  get esDocente(): boolean {
+    return Number(this.usuario?.id_tipo_usuario) === 3;
   }
 
   private limpiarEstadoYSalir() {
@@ -135,7 +140,7 @@ export class PerfilPage implements OnInit, OnDestroy {
       descripcion: descReal
     };
 
-    u.imagen = u.imagen || u.foto || u.url_foto || alumnoObj.imagen || alumnoObj.foto || null;
+    u.imagen = u.imagen !== undefined ? u.imagen : (u.foto || u.url_foto || alumnoObj.imagen || alumnoObj.foto || null);
     
     const pts = puntosOficiales !== undefined 
       ? puntosOficiales 
@@ -152,7 +157,6 @@ export class PerfilPage implements OnInit, OnDestroy {
     const possibleKeys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
     let sessionData: any = null;
 
-    // Solo consultar sessionStorage
     for (const key of possibleKeys) {
       const val = sessionStorage.getItem(key);
       if (val) {
@@ -186,7 +190,6 @@ export class PerfilPage implements OnInit, OnDestroy {
       return;
     }
 
-    // 1. CARGA DESDE CACHÉ TEMPORAL (sessionStorage)
     if (objetoLocal) {
       if (objetoLocal.nivelUsuarioInfo) {
         this.nivelUsuarioInfo = objetoLocal.nivelUsuarioInfo;
@@ -202,10 +205,9 @@ export class PerfilPage implements OnInit, OnDestroy {
       this.cdRef.detectChanges();
     }
 
-    // 2. PETICIONES EN SEGUNDO PLANO
     const reqAlumno = this.alumnoService.getAlumnoByRut(rutLimpio).pipe(catchError(() => of(null)));
-    const reqPuntos = this.actividadService.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null)));
-    const reqNivel = this.actividadService.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null)));
+    const reqPuntos = !this.esDocente ? this.actividadService.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null))) : of(0);
+    const reqNivel = !this.esDocente ? this.actividadService.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null))) : of(null);
 
     forkJoin({
       alumnoBD: reqAlumno,
@@ -227,7 +229,7 @@ export class PerfilPage implements OnInit, OnDestroy {
           puntosOficialesBD = Number(resPuntos.puntaje_total ?? resPuntos.puntaje ?? resPuntos.puntos ?? resPuntos.total ?? 0);
         }
 
-        if (resNivel) {
+        if (resNivel && !this.esDocente) {
           this.nivelUsuarioInfo = resNivel;
           this.nivelAlumno = resNivel.nombre_nivel || 'Bronce';
           const idNivel = Number(resNivel.id_nivel ?? 1);
@@ -242,10 +244,12 @@ export class PerfilPage implements OnInit, OnDestroy {
         }
 
         this.actualizarAlmacenamientoLocal(this.usuario);
-        this.actualizarSesionConNivel(this.nivelUsuarioInfo, this.nivelAlumno, this.colorNivel);
-
-        this.cargarHistorialPuntos(rutLimpio);
-        this.cargarMisCanjes(rutLimpio);
+        
+        if (!this.esDocente) {
+          this.actualizarSesionConNivel(this.nivelUsuarioInfo, this.nivelAlumno, this.colorNivel);
+          this.cargarHistorialPuntos(rutLimpio);
+          this.cargarMisCanjes(rutLimpio);
+        }
 
         this.cargando = false;
         this.cdRef.detectChanges();
@@ -306,6 +310,7 @@ export class PerfilPage implements OnInit, OnDestroy {
     const file = event.target.files[0];
     if (file) {
       this.archivoFoto = file;
+      this.imagenEliminada = false;
       
       const reader = new FileReader();
       reader.onload = (e: any) => {
@@ -318,6 +323,23 @@ export class PerfilPage implements OnInit, OnDestroy {
       if (!this.editando) {
         this.guardarPerfil();
       }
+    }
+  }
+
+  eliminarFotoActual() {
+    this.archivoFoto = null;
+    this.imagenEliminada = true;
+    if (this.usuario) {
+      this.usuario.imagen = null;
+    }
+    if (this.fileInput) {
+      this.fileInput.nativeElement.value = '';
+    }
+    
+    if (!this.editando) {
+      this.guardarPerfil();
+    } else {
+      this.cdRef.detectChanges();
     }
   }
 
@@ -360,10 +382,15 @@ export class PerfilPage implements OnInit, OnDestroy {
       telefonoEnvio = '9' + telefonoEnvio;
     }
 
-    const perfilData = {
+    const perfilData: any = {
       direccion: String(this.perfilForm.direccion || '').trim(),
       telefono: telefonoEnvio
     };
+
+    if (this.imagenEliminada) {
+      perfilData.eliminar_imagen = true;
+      perfilData.imagen = null;
+    }
 
     this.alumnoService.actualizarPerfil(
       rut,
@@ -373,9 +400,13 @@ export class PerfilPage implements OnInit, OnDestroy {
       next: (res: any) => {
         const devuelto = res.usuario || res.alumno || res.data || res;
         
+        // Ajuste en el merge para forzar el NULL si fue eliminada
+        const imagenFinal = this.imagenEliminada ? null : (devuelto.imagen !== undefined ? devuelto.imagen : this.usuario?.imagen);
+
         this.usuario = this.normalizarUsuario({ 
           ...this.usuario, 
           ...devuelto,
+          imagen: imagenFinal,
           nivelUsuarioInfo: this.nivelUsuarioInfo,
           nivelAlumno: this.nivelAlumno,
           colorNivel: this.colorNivel
@@ -384,9 +415,12 @@ export class PerfilPage implements OnInit, OnDestroy {
         this.editando = false;
         this.guardando = false;
         this.archivoFoto = null;
+        this.imagenEliminada = false;
         
         this.actualizarAlmacenamientoLocal(this.usuario);
-        this.actualizarSesionConNivel(this.nivelUsuarioInfo, this.nivelAlumno, this.colorNivel);
+        if (!this.esDocente) {
+          this.actualizarSesionConNivel(this.nivelUsuarioInfo, this.nivelAlumno, this.colorNivel);
+        }
 
         this.mostrarToast('Perfil actualizado correctamente', 'success');
         this.cdRef.detectChanges();
@@ -488,16 +522,17 @@ export class PerfilPage implements OnInit, OnDestroy {
   }
 
   cargarHistorialPuntos(rut: string) {
+    if (this.esDocente) return;
     this.cargandoHistorial = true;
     this.actividadService.getHistorialPuntos(rut).subscribe({
       next: (res: any) => {
         const lista = Array.isArray(res) ? res : (res?.data || []);
         
-        // ORDENAMIENTO DESCENDENTE: Los registros más recientes aparecen primero
+        // Ajuste en el ordenamiento por fecha cronológica (evita NaN con IDs mixtos como CONS-X)
         this.historialPuntos = lista.sort((a: any, b: any) => {
-          const idA = Number(a.id_historial || a.id_inscripcion || a.id_actividad || a.id || 0);
-          const idB = Number(b.id_historial || b.id_inscripcion || b.id_actividad || b.id || 0);
-          return idB - idA;
+          const fechaA = new Date(a.fecha || 0).getTime();
+          const fechaB = new Date(b.fecha || 0).getTime();
+          return fechaB - fechaA;
         });
 
         this.cargandoHistorial = false;
@@ -512,6 +547,7 @@ export class PerfilPage implements OnInit, OnDestroy {
   }
 
   cargarMisCanjes(rut: string) {
+    if (this.esDocente) return;
     this.cargandoCanjes = true;
     this.actividadService.getMisCanjes(rut).subscribe({
       next: (res: any) => {
@@ -520,7 +556,6 @@ export class PerfilPage implements OnInit, OnDestroy {
           canje.retiro_premio && canje.retiro_premio.retirado === true
         );
 
-        // ORDENAMIENTO DESCENDENTE: Los canjes retirados más recientes aparecen primero
         this.misCanjes = filtrados.sort((a: any, b: any) => {
           const idA = Number(a.id_canje || a.id_solicitud || a.id || 0);
           const idB = Number(b.id_canje || b.id_solicitud || b.id || 0);

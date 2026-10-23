@@ -292,6 +292,16 @@
             <input #fileInputAdd type="file" (change)="seleccionarImagen($event, 'agregar')" accept="image/*" hidden />
           </div>
 
+          <!-- MENSAJE INFORMATIVO PARA NO-ADMINISTRADORES -->
+          <div *ngIf="!esAdmin" class="ion-padding-horizontal ion-padding-bottom">
+            <ion-item lines="none" style="--background: #f0fdf4; --color: #166534; border-radius: 8px; font-size: 0.85rem;">
+              <ion-icon name="shield-checkmark-outline" slot="start" color="success"></ion-icon>
+              <ion-label class="ion-text-wrap">
+                El responsable y la sede han sido asignados automáticamente según su sesión activa.
+              </ion-label>
+            </ion-item>
+          </div>
+
           <ion-grid class="ion-no-padding">
             <ion-row>
               <ion-col size="12">
@@ -311,11 +321,13 @@
                 </ion-item>
               </ion-col>
 
+              <!-- RESPONSABLE: Clickable y buscador activo solo para Admins -->
               <ion-col size="12" size-md="6">
-                <ion-item class="input-modal clickable-item" lines="none" (click)="abrirModalDocentes('agregar')">
+                <ion-item class="input-modal" [class.clickable-item]="esAdmin" lines="none" (click)="esAdmin && abrirModalDocentes('agregar')">
                   <ion-label position="stacked">Responsable *</ion-label>
                   <ion-input formControlName="responsable_actividad" readonly placeholder="Seleccionar docente"></ion-input>
-                  <ion-icon name="search-outline" slot="end" class="input-icon"></ion-icon>
+                  <ion-icon *ngIf="esAdmin" name="search-outline" slot="end" class="input-icon"></ion-icon>
+                  <ion-icon *ngIf="!esAdmin" name="lock-closed-outline" slot="end" class="input-icon" color="medium"></ion-icon>
                 </ion-item>
               </ion-col>
 
@@ -330,10 +342,11 @@
                 </ion-item>
               </ion-col>
 
+              <!-- SEDE: Deshabilitada si no es Admin -->
               <ion-col size="12" size-md="6">
                 <ion-item class="input-modal" lines="none">
                   <ion-label position="stacked">Sede *</ion-label>
-                  <ion-select formControlName="id_sede" placeholder="Seleccione Sede">
+                  <ion-select formControlName="id_sede" placeholder="Seleccione Sede" [disabled]="!esAdmin">
                     <ion-select-option *ngFor="let s of listaSedes" [value]="s.id_sede">
                       {{ s.descripcion }}
                     </ion-select-option>
@@ -496,10 +509,11 @@
                 </ion-col>
 
                 <ion-col size="12" size-md="6">
-                  <ion-item class="input-modal clickable-item" lines="none" (click)="abrirModalDocentes('editar')">
+                  <ion-item class="input-modal" [class.clickable-item]="esAdmin" lines="none" (click)="esAdmin && abrirModalDocentes('editar')">
                     <ion-label position="stacked">Responsable *</ion-label>
                     <ion-input formControlName="responsable_actividad" readonly></ion-input>
-                    <ion-icon name="search-outline" slot="end" class="input-icon"></ion-icon>
+                    <ion-icon *ngIf="esAdmin" name="search-outline" slot="end" class="input-icon"></ion-icon>
+                    <ion-icon *ngIf="!esAdmin" name="lock-closed-outline" slot="end" class="input-icon" color="medium"></ion-icon>
                   </ion-item>
                 </ion-col>
 
@@ -517,7 +531,7 @@
                 <ion-col size="12" size-md="6">
                   <ion-item class="input-modal" lines="none">
                     <ion-label position="stacked">Sede *</ion-label>
-                    <ion-select formControlName="id_sede">
+                    <ion-select formControlName="id_sede" [disabled]="!esAdmin">
                       <ion-select-option *ngFor="let s of listaSedes" [value]="s.id_sede">
                         {{ s.descripcion }}
                       </ion-select-option>

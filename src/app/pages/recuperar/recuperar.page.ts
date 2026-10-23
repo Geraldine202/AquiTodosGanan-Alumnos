@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { ToastController } from '@ionic/angular';
+import { ToastController, ViewWillEnter, ViewWillLeave } from '@ionic/angular';
 
 @Component({
   selector: 'app-recuperar',
@@ -9,7 +9,7 @@ import { ToastController } from '@ionic/angular';
   styleUrls: ['./recuperar.page.scss'],
   standalone: false
 })
-export class RecuperarPage {
+export class RecuperarPage implements ViewWillEnter, ViewWillLeave {
   paso: number = 1;
   correo: string = '';
   token: string = '';
@@ -17,11 +17,9 @@ export class RecuperarPage {
   nuevaContrasenia: string = '';
   confirmarContrasenia: string = '';
 
-  // Visibilidad de contraseñas (ojito)
   verNuevaPassword: boolean = false;
   verConfirmarPassword: boolean = false;
 
-  // Manejo de errores y requisitos de seguridad
   errorPassword: string = '';
   requisitosPass = {
     longitud: false,
@@ -31,7 +29,6 @@ export class RecuperarPage {
     especial: false
   };
 
-  // IP/puerto de tu servidor Node.js
   private apiUrl = 'http://localhost:3000/auth'; 
 
   constructor(
@@ -39,6 +36,48 @@ export class RecuperarPage {
     private router: Router,
     private toastCtrl: ToastController
   ) {}
+
+  ionViewWillEnter() {
+    this.resetearFormulario();
+  }
+
+  ionViewWillLeave() {
+    this.resetearFormulario();
+  }
+
+  /**
+   * Resetea todos los campos a su estado inicial.
+   */
+  resetearFormulario() {
+    this.paso = 1;
+    this.correo = '';
+    this.token = '';
+    this.nuevaContrasenia = '';
+    this.confirmarContrasenia = '';
+    this.verNuevaPassword = false;
+    this.verConfirmarPassword = false;
+    this.errorPassword = '';
+    this.requisitosPass = {
+      longitud: false,
+      mayuscula: false,
+      minuscula: false,
+      numero: false,
+      especial: false
+    };
+  }
+
+  /**
+   * Controla el botón de regreso: si está en el Paso 2, limpia todo y regresa al Paso 1.
+   * Si ya está en el Paso 1, regresa a la pantalla de Login.
+   */
+  volverAlPaso1() {
+    if (this.paso === 2) {
+      this.resetearFormulario();
+    } else {
+      this.resetearFormulario();
+      this.router.navigate(['/login']);
+    }
+  }
 
   toggleVerNuevaPassword() {
     this.verNuevaPassword = !this.verNuevaPassword;
@@ -48,13 +87,9 @@ export class RecuperarPage {
     this.verConfirmarPassword = !this.verConfirmarPassword;
   }
 
-  /**
-   * Evalúa la contraseña en tiempo real mientras el usuario escribe
-   */
   validarPasswordEnVivo() {
     const pass = this.nuevaContrasenia || '';
 
-    // Evaluar cada regla de seguridad
     this.requisitosPass.longitud = pass.length >= 8;
     this.requisitosPass.mayuscula = /[A-Z]/.test(pass);
     this.requisitosPass.minuscula = /[a-z]/.test(pass);
@@ -73,9 +108,6 @@ export class RecuperarPage {
     }
   }
 
-  /**
-   * Valida la estructura completa antes de enviar la solicitud al backend
-   */
   private esPasswordValida(pass: string): boolean {
     if (!pass || pass.length < 8) return false;
     const tieneMayuscula = /[A-Z]/.test(pass);
@@ -86,7 +118,6 @@ export class RecuperarPage {
     return tieneMayuscula && tieneMinuscula && tieneNumero && tieneEspecial;
   }
 
-  // 1. Enviar correo para solicitar el token
   solicitarCodigo() {
     if (!this.correo || !this.correo.trim()) {
       this.mostrarToast('Por favor, ingresa tu correo institucional.', 'warning');
@@ -96,10 +127,7 @@ export class RecuperarPage {
     this.http.post<any>(`${this.apiUrl}/solicitar-recuperacion`, { correo: this.correo.trim() }).subscribe({
       next: (res) => {
         this.mostrarToast(res.mensaje || 'Código generado correctamente.', 'success');
-        if (res.token) {
-          console.log('🔑 Token de pruebas:', res.token);
-        }
-        this.paso = 2; // Avanza al paso de ingresar el código
+        this.paso = 2;
       },
       error: (err) => {
         const msg = err.error?.error || err.error?.mensaje || 'Error al procesar la solicitud.';
@@ -108,22 +136,19 @@ export class RecuperarPage {
     });
   }
 
-  // 2. Validar token y actualizar la clave con requisitos de seguridad
   cambiarContrasenia() {
     if (!this.token || !this.nuevaContrasenia || !this.confirmarContrasenia) {
       this.mostrarToast('Por favor, completa todos los campos requeridos.', 'warning');
       return;
     }
 
-    // Validación de reglas de complejidad
     if (!this.esPasswordValida(this.nuevaContrasenia)) {
       this.mostrarToast('La nueva contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.', 'danger');
       return;
     }
 
-    // Validación de coincidencia
     if (this.nuevaContrasenia !== this.confirmarContrasenia) {
-      this.mostrarToast('Las contraseñas ingresadas no coinciden.', 'warning');
+      this.mostrarToast('Las contraseñas ingresadas no coinciden.', 'danger');
       return;
     }
 
@@ -135,6 +160,7 @@ export class RecuperarPage {
     this.http.post<any>(`${this.apiUrl}/restablecer-password`, payload).subscribe({
       next: (res) => {
         this.mostrarToast(res.mensaje || '¡Contraseña restablecida con éxito!', 'success');
+        this.resetearFormulario();
         this.router.navigate(['/login']);
       },
       error: (err) => {

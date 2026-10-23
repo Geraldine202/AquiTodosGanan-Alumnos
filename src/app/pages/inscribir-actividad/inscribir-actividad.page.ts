@@ -44,6 +44,16 @@ export class InscribirActividadPage implements OnInit {
     return estadoId === 3 || estadoId === 4 || desc.includes('finalizad') || desc.includes('cancelad') || desc.includes('terminad');
   }
 
+  // Corta cadenas de hora "10:00:00" -> "10:00 hrs"
+  formatearHora(hora: string): string {
+    if (!hora) return 'Por definir';
+    const partes = String(hora).split(':');
+    if (partes.length >= 2) {
+      return `${partes[0]}:${partes[1]} hrs`;
+    }
+    return String(hora);
+  }
+
   cargarDatos() {
     this.cargando = true;
 
@@ -93,18 +103,29 @@ export class InscribirActividadPage implements OnInit {
       return;
     }
 
-    const rutLimpio = String(rawRut).replace(/\./g, '').trim();
+    const rutLimpio = String(rawRut).replace(/\./g, '').trim().toUpperCase();
 
     // 3. Cargar actividades filtradas por Sede
     this.actividadService.getActividadesPorSede(rutLimpio).subscribe({
       next: (res: any) => {
-        this.nombreSede = res?.sede || '';
+        this.nombreSede = res?.sede || res?.nombre_sede || 'Tu Sede';
         const listaSede: any[] = Array.isArray(res) ? res : (res?.actividades || res?.data || []);
 
         const ahora = new Date();
 
         // FILTRADO ESTRICTO DE ACTIVIDADES DISPONIBLES EN EL ALUMNO
         const actividadesVigentes = listaSede.filter((act: any) => {
+          // Excluir si el usuario es el responsable (Consejero / Docente)
+          const rutResponsable = String(act.rut_usuario || act.rut_responsable || act.responsable?.rut_usuario || '')
+            .replace(/\./g, '')
+            .trim()
+            .toUpperCase();
+
+          if (rutResponsable && rutResponsable === rutLimpio) {
+            return false;
+          }
+
+          // Excluir si está finalizada
           if (this.esActividadFinalizada(act)) {
             return false;
           }
@@ -119,13 +140,12 @@ export class InscribirActividadPage implements OnInit {
           return fechaTermino >= ahora;
         });
 
-        // 4. Consultar inscripciones previas del alumno y calcular puntos según ASISTENCIA
+        // 4. Consultar inscripciones previas del alumno
         this.actividadService.getInscripcionesPorAlumno(rutLimpio).subscribe({
           next: (inscripciones: InscripcionDetalle[]) => {
             this.misInscripcionesPrevias = Array.isArray(inscripciones) ? inscripciones : [];
-            const idsInscritos = this.misInscripcionesPrevias.map(i => i.id_actividad);
+            const idsInscritos = this.misInscripcionesPrevias.map(i => Number(i.id_actividad));
 
-            // CÁLCULO DE PUNTAJE REAL:
             this.puntajeTotal = this.misInscripcionesPrevias.reduce((acc, curr) => {
               const asistio = Boolean(curr.asistio ?? curr.presente ?? curr.asistencia);
               const puntos = curr.puntos_ganados || curr.puntos || 0;
@@ -141,8 +161,11 @@ export class InscribirActividadPage implements OnInit {
                 ...act,
                 cupos_disponibles: cuposDisponibles,
                 lugar: lugarNombre,
+                sede_nombre: act.sede?.nombre_sede || act.nombre_sede || this.nombreSede,
                 puntos: puntosOtorgados,
-                inscrito: idsInscritos.includes(act.id_actividad)
+                hora_inicio_fmt: this.formatearHora(act.hora_inicio),
+                hora_termino_fmt: this.formatearHora(act.hora_termino),
+                inscrito: idsInscritos.includes(Number(act.id_actividad))
               };
             });
 
@@ -156,7 +179,10 @@ export class InscribirActividadPage implements OnInit {
               ...act,
               cupos_disponibles: act.cupo_actividad?.[0]?.cantidad ?? act.cupos ?? 0,
               lugar: act.lugar_actividad?.[0]?.descripcion ?? act.lugar ?? 'Por definir',
+              sede_nombre: act.sede?.nombre_sede || act.nombre_sede || this.nombreSede,
               puntos: act.puntaje_act?.[0]?.cantidad ?? act.puntos ?? 0,
+              hora_inicio_fmt: this.formatearHora(act.hora_inicio),
+              hora_termino_fmt: this.formatearHora(act.hora_termino),
               inscrito: false
             }));
 
@@ -174,7 +200,6 @@ export class InscribirActividadPage implements OnInit {
     });
   }
 
-  // --- VALIDACIÓN LOCAL DE TRASLAPE DE HORARIO ---
   validarTraslapeLocal(nuevaActividad: any): { traslape: boolean; actividadConflicto?: any } {
     if (!this.misInscripcionesPrevias || this.misInscripcionesPrevias.length === 0) {
       return { traslape: false };
@@ -204,6 +229,21 @@ export class InscribirActividadPage implements OnInit {
   }
 
   async confirmarInscripcion(actividad: any) {
+    const rawRut = this.usuarioLogueado?.rut_usuario || sessionStorage.getItem('rut_usuario') || '';
+    const rutLimpio = String(rawRut).replace(/\./g, '').trim().toUpperCase();
+    const rutResponsable = String(actividad.rut_usuario || actividad.rut_responsable || '')
+      .replace(/\./g, '')
+      .trim()
+      .toUpperCase();
+
+    if (rutLimpio && rutResponsable === rutLimpio) {
+      await this.mostrarAlerta(
+        'Inscripción No Permitida',
+        'Eres el responsable a cargo de esta actividad, por lo que no puedes inscribirte como participante.'
+      );
+      return;
+    }
+
     const conflictoLocal = this.validarTraslapeLocal(actividad);
     if (conflictoLocal.traslape) {
       const conf = conflictoLocal.actividadConflicto;
@@ -235,7 +275,6 @@ export class InscribirActividadPage implements OnInit {
   ejecutarInscripcion(actividad: any) {
     this.procesando = true;
 
-    // Extraer exclusivamente de sessionStorage
     const rawRut = 
       this.usuarioLogueado?.rut_usuario || 
       this.usuarioLogueado?.rut_alumno || 

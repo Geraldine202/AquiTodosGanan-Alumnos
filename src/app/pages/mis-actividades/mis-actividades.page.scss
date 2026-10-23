@@ -46,11 +46,10 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     overflow: hidden;
 
-    // CONTENEDOR QUE PERMITE VER LA IMAGEN COMPLETA SIN CORTES
     .card-img-wrapper {
       position: relative;
       height: 170px;
-      background: #0f172a; // Fondo oscuro elegante para los bordes libres de la imagen
+      background: #0f172a;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -59,7 +58,7 @@
       img.img-fit-contain {
         width: 100%;
         height: 100%;
-        object-fit: contain; // Muestra la imagen completa sin recortar ningún borde
+        object-fit: contain;
         border-radius: 8px;
       }
 
@@ -75,7 +74,7 @@
     }
 
     ion-card-header {
-      padding: 12px 16px 4px 16px;
+      padding: 12px 16px 8px 16px;
 
       .card-top-info {
         display: flex;
@@ -87,33 +86,82 @@
           font-size: 0.75rem;
           padding: 4px 8px;
         }
-
-        .fecha-txt {
-          color: #94a3b8;
-          font-size: 0.8rem;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
       }
 
       ion-card-title {
         color: #ffffff;
         font-size: 1.1rem;
         font-weight: 700;
+        line-height: 1.3;
       }
     }
 
     ion-card-content {
       padding: 0 16px 16px 16px;
 
-      p {
-        color: #94a3b8;
-        font-size: 0.85rem;
+      // Estilo limpio para la descripción de la actividad
+      p.ion-margin-bottom {
+        color: #cbd5e1;
+        font-size: 0.88rem;
+        line-height: 1.4;
+        margin-bottom: 12px;
+      }
+
+      // CONTENEDOR VERTICAL PARA DETALLES
+      .detalles-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #0f172a;
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+
+        p.lugar-txt, p.fecha-txt {
+          color: #94a3b8;
+          font-size: 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin: 0;
+
+          ion-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+          }
+
+          span {
+            color: #e2e8f0;
+            
+            strong {
+              color: #94a3b8;
+              font-weight: 600;
+            }
+          }
+        }
+      }
+
+      // BOTÓN / BADGE AL FINAL DE LA TARJETA
+      ion-badge[mode="ios"] {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 6px;
-        margin: 0;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        border-radius: 8px;
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      .btn-desinscribir {
+        --padding-start: 0;
+        --padding-end: 0;
+        font-size: 0.82rem;
+        font-weight: 600;
+        margin-top: 6px;
+        width: 100%;
+        height: 36px;
       }
     }
 
@@ -124,14 +172,17 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: 10px;
         flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 8px;
+        border-top: 1px solid #334155;
 
         ion-button {
           --border-radius: 8px;
           font-weight: 600;
           font-size: 0.8rem;
-          height: 32px;
+          height: 34px;
         }
 
         .badge-evaluado {
@@ -179,29 +230,9 @@
       margin: 8px auto 0 auto;
     }
   }
-
-  .card-footer-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .lugar-txt {
-      margin: 0;
-      font-size: 0.85rem;
-    }
-
-    .btn-desinscribir {
-      --padding-start: 4px;
-      --padding-end: 4px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      margin: 0;
-      height: 30px;
-    }
-  }
 }
 
-/* ESTILOS DEL MODAL DE ENCUESTA (TEMA OSCURO) */
+/* ESTILOS DEL MODAL DE ENCUESTA */
 ion-modal.custom-modal {
   --background: #1e293b;
   --border-radius: 16px;

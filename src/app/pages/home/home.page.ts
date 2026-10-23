@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subscription, forkJoin, of } from 'rxjs';
+import { Subscription, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { AlumnoService } from 'src/app/services/alumno';
 import { ActividadService, InfoNivelUsuario } from 'src/app/services/actividad';
@@ -50,21 +50,21 @@ export class HomePage implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit() {
-    // Escuchar el estado de la sesión en tiempo real
+    // Escuchar el estado de la sesión en tiempo real desde el servicio
     this.subUsuario = this.alumnoService.usuario$.subscribe(usuario => {
       if (usuario) {
-        this.cargarDatosUsuario();
+        this.procesarDatosUsuario(usuario);
       } else {
         this.limpiarEstado();
       }
     });
 
-    this.cargarDatosUsuario();
     this.cargarActividades();
     this.cargarPremios();
   }
 
   ionViewWillEnter() {
+    // Re-evaluar datos e invocar refresco rápido al entrar
     this.cargarDatosUsuario();
     this.cargarActividades();
     this.cargarPremios();
@@ -114,30 +114,34 @@ export class HomePage implements OnInit, OnDestroy {
     return tipo === 1 || tipo === 4;
   }
 
-cargarDatosUsuario() {
-  const sessionData = sessionStorage.getItem('usuarioLogueado') || sessionStorage.getItem('usuario');
+  cargarDatosUsuario() {
+    const sessionData = sessionStorage.getItem('usuarioLogueado') || sessionStorage.getItem('usuario');
 
-  if (!sessionData) {
-    this.limpiarEstado();
-    return;
+    if (!sessionData) {
+      this.limpiarEstado();
+      return;
+    }
+
+    let objetoUsuario: any = null;
+    try {
+      objetoUsuario = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
+    } catch (e) {
+      console.error('Error parseando sesión local:', e);
+    }
+
+    if (objetoUsuario) {
+      this.procesarDatosUsuario(objetoUsuario);
+    }
   }
 
-  let objetoUsuario: any = null;
-  try {
-    objetoUsuario = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
-  } catch (e) {
-    console.error('Error parseando sesión local:', e);
-  }
-
-  // 1. ASIGNACIÓN INSTANTÁNEA DESDE MEMORIA LOCAL (0ms de latencia)
-  if (objetoUsuario) {
+  private procesarDatosUsuario(objetoUsuario: any) {
     this.usuarioLogueado = objetoUsuario;
     const nombre = objetoUsuario.nombre_completo || objetoUsuario.nombre || 'Usuario';
     this.nombreAlumno = nombre.trim().split(' ')[0];
     this.estaLogueado = true;
     this.rutAlumno = objetoUsuario.rut_usuario || objetoUsuario.rut || '';
 
-    // Cargar puntos en pantalla inmediatamente desde la sesión
+    // Asignar puntos instantáneos desde sesión
     this.misPuntos = Number(
       objetoUsuario.puntaje_total ?? objetoUsuario.puntaje ?? objetoUsuario.puntos ?? 0
     );
@@ -149,50 +153,57 @@ cargarDatosUsuario() {
     }
 
     this.cdRef.detectChanges();
+
+    // Consulta inmediata de actualización al servidor
+    const rutLimpio = this.limpiarRut(this.rutAlumno);
+    if (rutLimpio) {
+      this.consultarDatosFrescosServidor(rutLimpio);
+    }
   }
 
-  const rutLimpio = this.limpiarRut(this.rutAlumno);
-  const servicioAny: any = this.actividadService;
+  private consultarDatosFrescosServidor(rutLimpio: string) {
+    const servicioAny: any = this.actividadService;
 
-  // 2. PETICIONES INDEPENDIENTES (Sin esperar al forkJoin)
+    // 1. Consulta de Puntos Frescos
+    if (typeof servicioAny.getPuntajeTotal === 'function') {
+      servicioAny.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null))).subscribe((resPuntos: any) => {
+        if (resPuntos !== null && resPuntos !== undefined) {
+          const puntosFrescos = Number(
+            resPuntos?.puntaje_total ?? resPuntos?.puntaje ?? resPuntos?.puntos ?? 
+            (typeof resPuntos === 'number' ? resPuntos : this.misPuntos)
+          );
+          
+          if (this.misPuntos !== puntosFrescos) {
+            this.misPuntos = puntosFrescos;
+            this.actualizarPuntosSesion(puntosFrescos);
+            this.cdRef.detectChanges();
+          }
+        }
+      });
+    }
 
-  // Consulta de Puntos Frescos
-  if (rutLimpio && typeof servicioAny.getPuntajeTotal === 'function') {
-    servicioAny.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null))).subscribe((resPuntos: any) => {
-      if (resPuntos !== null && resPuntos !== undefined) {
-        const puntosFrescos = Number(
-          resPuntos?.puntaje_total ?? resPuntos?.puntaje ?? resPuntos?.puntos ?? 
-          (typeof resPuntos === 'number' ? resPuntos : this.misPuntos)
-        );
-        this.misPuntos = puntosFrescos;
-        this.actualizarPuntosSesion(puntosFrescos);
-        this.cdRef.detectChanges();
-      }
-    });
+    // 2. Consulta de Nivel de Usuario
+    if (typeof servicioAny.getNivelUsuario === 'function') {
+      servicioAny.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null))).subscribe((resNivel: any) => {
+        if (resNivel) {
+          this.nivelUsuario = resNivel;
+          this.nivelAlumno = resNivel.nombre_nivel || 'Bronce';
+          const idNivel = Number(resNivel.id_nivel ?? 1);
+          this.colorNivel = idNivel === 3 ? 'medium' : idNivel === 2 ? 'warning' : 'tertiary';
+          this.actualizarSesionConNivel(resNivel, this.nivelAlumno, this.colorNivel);
+          this.cdRef.detectChanges();
+        }
+      });
+    }
+
+    // 3. Carga de actividades adicionales
+    if (this.esAlumnoOConsejero()) {
+      this.cargarProximasActividades(rutLimpio);
+      this.cargarNotificaciones(rutLimpio);
+    } else if (this.esDocente()) {
+      this.cargarDatosDocente(rutLimpio);
+    }
   }
-
-  // Consulta de Nivel de Usuario
-  if (rutLimpio && typeof servicioAny.getNivelUsuario === 'function') {
-    servicioAny.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null))).subscribe((resNivel: any) => {
-      if (resNivel) {
-        this.nivelUsuario = resNivel;
-        this.nivelAlumno = resNivel.nombre_nivel || 'Bronce';
-        const idNivel = Number(resNivel.id_nivel ?? 1);
-        this.colorNivel = idNivel === 3 ? 'medium' : idNivel === 2 ? 'warning' : 'tertiary';
-        this.actualizarSesionConNivel(resNivel, this.nivelAlumno, this.colorNivel);
-        this.cdRef.detectChanges();
-      }
-    });
-  }
-
-  // Carga de actividades adicionales según el perfil
-  if (this.esAlumnoOConsejero() && rutLimpio) {
-    this.cargarProximasActividades(rutLimpio);
-    this.cargarNotificaciones(rutLimpio);
-  } else if (this.esDocente() && rutLimpio) {
-    this.cargarDatosDocente(rutLimpio);
-  }
-}
 
   private actualizarPuntosSesion(puntosActuales: number) {
     if (!this.usuarioLogueado) return;
@@ -205,6 +216,11 @@ cargarDatosUsuario() {
     possibleKeys.forEach(key => {
       sessionStorage.setItem(key, JSON.stringify(this.usuarioLogueado));
     });
+
+    // Notificar cambio al servicio global de alumnos si posee el metodo
+    if (typeof (this.alumnoService as any).actualizarUsuarioEnMemoria === 'function') {
+      (this.alumnoService as any).actualizarUsuarioEnMemoria(this.usuarioLogueado);
+    }
   }
 
   private actualizarSesionConNivel(nivelInfo: InfoNivelUsuario, nombreNivel: string, color: string) {

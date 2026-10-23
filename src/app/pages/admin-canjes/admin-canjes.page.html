@@ -2,9 +2,7 @@
 
 <ion-content class="ion-padding bg-light">
 
-  <!-- ========================================== -->
-  <!-- BANNER INDICADOR DE ROL Y VISTA             -->
-  <!-- ========================================== -->
+  <!-- BANNER INDICADOR DE ROL Y VISTA -->
   <ion-card class="ion-no-margin ion-margin-bottom shadow-sm" style="border-left: 4px solid var(--ion-color-primary, #3880ff);">
     <ion-card-content class="ion-padding-vertical ion-padding-horizontal">
       <div class="ion-flex ion-align-items-center" style="gap: 10px;">
@@ -30,9 +28,7 @@
     </ion-card-content>
   </ion-card>
 
-  <!-- ========================================== -->
-  <!-- SEGMENTO DE FILTRADO POR ESTADO            -->
-  <!-- ========================================== -->
+  <!-- SEGMENTO DE FILTRADO POR ESTADO -->
   <ion-toolbar class="ion-no-border ion-margin-bottom">
     <ion-segment [(ngModel)]="filtroEstado" (ionChange)="aplicarFiltros()" scrollable="true">
       <ion-segment-button value="todos">Todos</ion-segment-button>
@@ -43,9 +39,7 @@
     </ion-segment>
   </ion-toolbar>
 
-  <!-- ========================================== -->
-  <!-- BARRA DE BÚSQUEDA EN TIEMPO REAL           -->
-  <!-- ========================================== -->
+  <!-- BARRA DE BÚSQUEDA EN TIEMPO REAL -->
   <ion-toolbar class="ion-no-border ion-margin-bottom">
     <ion-searchbar 
       [(ngModel)]="busqueda" 
@@ -77,9 +71,7 @@
     </p>
   </div>
 
-  <!-- ========================================== -->
-  <!-- TARJETAS DE SOLICITUDES DE CANJE           -->
-  <!-- ========================================== -->
+  <!-- TARJETAS DE SOLICITUDES DE CANJE -->
   <ion-card *ngFor="let item of solicitudesFiltradas" class="shadow-sm border-rounded ion-margin-bottom">
     <ion-item lines="full">
       <ion-avatar slot="start" *ngIf="item.premio?.imagen">
@@ -113,9 +105,15 @@
 
     <ion-card-content class="ion-padding-top">
 
-      <!-- ========================================== -->
-      <!-- CUADRO COMPARATIVO DE NIVELES             -->
-      <!-- ========================================== -->
+      <!-- DISTINTIVO SI LA SOLICITUD ES DEL PROPIO CONSEJERO LOGUEADO -->
+      <div *ngIf="esSuPropiaSolicitud(item)" class="ion-margin-bottom ion-padding-small" style="background: #fffbebf5; border: 1px solid #fef3c7; border-radius: 8px;">
+        <ion-text color="warning" style="display: flex; align-items: center; gap: 6px;">
+          <ion-icon name="lock-closed-outline" style="font-size: 1.1rem;"></ion-icon>
+          <small><strong>Tu solicitud personal:</strong> No puedes auto-aprobarte este canje. Requiere validación de un Administrador.</small>
+        </ion-text>
+      </div>
+
+      <!-- CUADRO COMPARATIVO DE NIVELES -->
       <div class="ion-margin-bottom ion-padding" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
         <div class="ion-flex ion-align-items-center ion-justify-content-between" style="gap: 12px; flex-wrap: wrap;">
           
@@ -207,14 +205,20 @@
             expand="block" 
             color="success" 
             size="small" 
-            [disabled]="(item.stock_sede_alumno ?? 0) <= 0 || (item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1)"
+            [disabled]="esSuPropiaSolicitud(item) || (item.stock_sede_alumno ?? 0) <= 0 || (item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1)"
             (click)="aprobarCanje(item)">
             <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
-            {{ (item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1) ? 'Nivel Insuficiente' : ((item.stock_sede_alumno ?? 0) > 0 ? 'Aprobar' : 'Sin Stock') }}
+            {{ esSuPropiaSolicitud(item) ? 'Requiere Admin' : ((item.info_nivel_usuario?.id_nivel ?? 1) < (item.premio?.id_nivel ?? 1) ? 'Nivel Insuficiente' : ((item.stock_sede_alumno ?? 0) > 0 ? 'Aprobar' : 'Sin Stock')) }}
           </ion-button>
         </ion-col>
         <ion-col size="6">
-          <ion-button expand="block" color="danger" fill="outline" size="small" (click)="cancelarPorStock(item)">
+          <ion-button 
+            expand="block" 
+            color="danger" 
+            fill="outline" 
+            size="small" 
+            [disabled]="esSuPropiaSolicitud(item)"
+            (click)="cancelarPorStock(item)">
             <ion-icon name="close-circle-outline" slot="start"></ion-icon>
             Rechazar
           </ion-button>
@@ -223,16 +227,10 @@
 
       <!-- Estado 2 (Aprobado): Permite Entregar (3) o Cancelar (4) -->
       <ng-container *ngIf="item.id_estado_canje === 2">
-        <ion-col size="8">
+        <ion-col size="12">
           <ion-button expand="block" color="primary" size="small" (click)="marcarComoRetirado(item)">
             <ion-icon name="gift-outline" slot="start"></ion-icon>
             Entregar Premio
-          </ion-button>
-        </ion-col>
-        <ion-col size="4">
-          <ion-button expand="block" color="danger" fill="outline" size="small" (click)="cancelarPorStock(item)">
-            <ion-icon name="close-circle-outline" slot="start"></ion-icon>
-            Cancelar
           </ion-button>
         </ion-col>
       </ng-container>

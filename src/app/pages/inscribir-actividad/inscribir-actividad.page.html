@@ -10,7 +10,7 @@
     <!-- RESUMEN DE SEDE Y PUNTAJE ACUMULADO -->
     <div class="user-stats-bar ion-margin-top" *ngIf="nombreSede || puntajeTotal !== undefined">
       <ion-chip color="primary" outline="true" *ngIf="nombreSede">
-        <ion-icon name="location-outline"></ion-icon>
+        <ion-icon name="business-outline"></ion-icon>
         <ion-label>Sede: <strong>{{ nombreSede }}</strong></ion-label>
       </ion-chip>
     </div>
@@ -35,8 +35,8 @@
             class="img-fit-contain"
             (error)="$event.target.src = 'assets/logo.png'">
           
-          <ion-badge color="warning" class="pts-badge" *ngIf="act.puntaje_act && act.puntaje_act[0]">
-            +{{ act.puntaje_act[0]?.cantidad || 0 }} Pts
+          <ion-badge color="warning" class="pts-badge">
+            +{{ act.puntos || (act.puntaje_act?.[0]?.cantidad) || 0 }} Pts
           </ion-badge>
         </div>
 
@@ -48,27 +48,48 @@
           <!-- DESCRIPCIÓN -->
           <p class="ion-margin-bottom" *ngIf="act.descripcion">{{ act.descripcion }}</p>
 
-          <!-- LUGAR -->
-          <p class="info-row" *ngIf="act.lugar_actividad && act.lugar_actividad[0]">
-            <ion-icon name="location-outline" color="primary"></ion-icon> 
-            <span>{{ act.lugar_actividad[0]?.descripcion }}</span>
-          </p>
+          <!-- SECCIÓN DETALLADA: SEDE, LUGAR, FECHA Y HORAS -->
+          <div class="detalles-contenedor" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+            
+            <!-- SEDE / CAMPUS -->
+            <p class="info-row" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+              <ion-icon name="business-outline" color="primary"></ion-icon> 
+              <span><strong>Sede / Campus:</strong> {{ act.sede_nombre || nombreSede || 'Sede principal' }}</span>
+            </p>
 
-          <!-- FECHA -->
-          <p class="info-row" *ngIf="act.fecha_inicio">
-            <ion-icon name="calendar-outline" color="primary"></ion-icon> 
-            <span>{{ act.fecha_inicio | date:'dd/MM/yyyy HH:mm' }}</span>
-          </p>
+            <!-- LUGAR / SALA -->
+            <p class="info-row" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+              <ion-icon name="location-outline" color="primary"></ion-icon> 
+              <span><strong>Lugar / Sala:</strong> {{ act.lugar || act.lugar_actividad?.[0]?.descripcion || 'Por definir' }}</span>
+            </p>
 
-          <!-- CUPOS -->
-          <p class="info-row" *ngIf="act.cupo_actividad && act.cupo_actividad[0]">
-            <ion-icon name="people-outline" color="primary"></ion-icon> 
-            <span>Cupos disponibles: 
-              <strong [class.text-danger]="act.cupo_actividad[0]?.cantidad <= 0">
-                {{ act.cupo_actividad[0]?.cantidad }}
-              </strong>
-            </span>
-          </p>
+            <!-- FECHA -->
+            <p class="info-row" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+              <ion-icon name="calendar-outline" color="primary"></ion-icon> 
+              <span><strong>Fecha:</strong> {{ act.fecha ? (act.fecha | date:'dd/MM/yyyy') : 'Por definir' }}</span>
+            </p>
+
+            <!-- HORARIO COMPLETO (INICIO Y TÉRMINO) -->
+            <p class="info-row" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+              <ion-icon name="time-outline" color="primary"></ion-icon> 
+              <span>
+                <strong>Horario:</strong> 
+                De {{ act.hora_inicio_fmt || (act.hora_inicio ? act.hora_inicio.slice(0,5) + ' hrs' : 'Por definir') }} 
+                a {{ act.hora_termino_fmt || (act.hora_termino ? act.hora_termino.slice(0,5) + ' hrs' : 'Por definir') }}
+              </span>
+            </p>
+
+            <!-- CUPOS DISPONIBLES -->
+            <p class="info-row" style="display: flex; align-items: center; gap: 6px; margin: 0;">
+              <ion-icon name="people-outline" color="primary"></ion-icon> 
+              <span><strong>Cupos disponibles:</strong> 
+                <strong [class.text-danger]="(act.cupos_disponibles !== undefined ? act.cupos_disponibles : act.cupo_actividad?.[0]?.cantidad) <= 0">
+                  {{ act.cupos_disponibles !== undefined ? act.cupos_disponibles : (act.cupo_actividad?.[0]?.cantidad || 0) }}
+                </strong>
+              </span>
+            </p>
+
+          </div>
 
           <!-- BOTÓN DE ACCIÓN -->
           <div class="action-box ion-margin-top">
@@ -76,10 +97,10 @@
               expand="block" 
               [color]="act.inscrito ? 'success' : 'primary'"
               [fill]="act.inscrito ? 'outline' : 'solid'"
-              [disabled]="act.inscrito || procesando || (act.cupo_actividad && act.cupo_actividad[0]?.cantidad <= 0)"
+              [disabled]="act.inscrito || procesando || ((act.cupos_disponibles !== undefined ? act.cupos_disponibles : act.cupo_actividad?.[0]?.cantidad) <= 0)"
               (click)="confirmarInscripcion(act)">
               <ion-icon [name]="act.inscrito ? 'checkmark-circle-outline' : 'add-circle-outline'" slot="start"></ion-icon>
-              {{ act.inscrito ? 'Ya estás inscrito' : (act.cupo_actividad && act.cupo_actividad[0]?.cantidad <= 0 ? 'Sin Cupos' : 'Inscribirme') }}
+              {{ act.inscrito ? 'Ya estás inscrito' : (((act.cupos_disponibles !== undefined ? act.cupos_disponibles : act.cupo_actividad?.[0]?.cantidad) <= 0) ? 'Sin Cupos' : 'Inscribirme') }}
             </ion-button>
           </div>
         </ion-card-content>

@@ -9,7 +9,7 @@
       <!-- CONTENEDOR AVATAR + CÁMARA OVERLAY + BADGE NIVEL -->
       <div class="avatar-container">
         
-        <!-- Círculo de la foto/avatar -->
+        <!-- Círculo del avatar -->
         <div class="avatar-box" (click)="seleccionarImagen()">
           <img *ngIf="usuario?.imagen" [src]="usuario.imagen" class="profile-avatar-img" alt="Foto perfil" />
           <div *ngIf="!usuario?.imagen" class="avatar-placeholder">
@@ -21,20 +21,31 @@
           </div>
         </div>
 
+        <!-- Botón flotante para ELIMINAR FOTO (se muestra cuando hay foto cargada) -->
+        <ion-button 
+          *ngIf="usuario?.imagen" 
+          fill="clear" 
+          color="danger" 
+          size="small" 
+          class="btn-delete-avatar"
+          (click)="eliminarFotoActual(); $event.stopPropagation()">
+          <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+        </ion-button>
+
         <input type="file" #fileInput (change)="alSeleccionarArchivo($event)" accept="image/*" class="file-input-hidden" />
 
-        <!-- Badge del Nivel posicionado debajo de la foto -->
-        <ion-badge [color]="colorNivel" class="badge-nivel">
+        <!-- Badge del Nivel posicionado debajo de la foto (OCULTO PARA DOCENTES) -->
+        <ion-badge *ngIf="!esDocente" [color]="colorNivel" class="badge-nivel">
           <ion-icon name="trophy-outline"></ion-icon> {{ nivelAlumno }}
         </ion-badge>
       </div>
 
       <!-- DATOS PRINCIPALES -->
-      <h1 class="user-name">{{ usuario?.nombre_completo || 'Alumno' }}</h1>
+      <h1 class="user-name">{{ usuario?.nombre_completo || 'Usuario' }}</h1>
       <p class="user-rut">{{ usuario?.rut_usuario }}</p>
 
-      <!-- TARJETA DE PUNTOS ACUMULADOS -->
-      <div class="points-card">
+      <!-- TARJETA DE PUNTOS ACUMULADOS (OCULTA PARA DOCENTES) -->
+      <div *ngIf="!esDocente" class="points-card">
         <div class="points-info">
           <span class="label">PUNTOS ACUMULADOS</span>
           <div class="val">
@@ -48,8 +59,8 @@
     </div>
   </div>
 
-  <!-- NAVEGACIÓN SEGMENTOS -->
-  <div class="segment-container">
+  <!-- NAVEGACIÓN SEGMENTOS (OCULTA PARA DOCENTES) -->
+  <div *ngIf="!esDocente" class="segment-container">
     <ion-segment [value]="segmentoSeleccionado" (ionChange)="cambiarSegmento($event)" class="custom-segment">
       <ion-segment-button value="perfil">
         <ion-icon name="person-outline"></ion-icon>
@@ -117,7 +128,7 @@
         <ion-icon name="school-outline" slot="start" color="primary"></ion-icon>
         <ion-label>
           <h3>Tipo de Usuario</h3>
-          <p>{{ usuario?.tipo_usuario?.descripcion || 'Alumno' }}</p>
+          <p>{{ usuario?.tipo_usuario?.descripcion || 'Estudiante' }}</p>
         </ion-label>
       </ion-item>
     </ion-list>
@@ -167,7 +178,7 @@
       </div>
     </div>
 
-    <!-- TARJETA DESPLEGABLE -->
+    <!-- TARJETA DESPLEGABLE DE SEGURIDAD -->
     <ion-card *ngIf="mostrarCambiarPassword" class="canje-card margin-bottom-card security-card">
       <ion-card-header>
         <ion-card-title>Nueva Contraseña</ion-card-title>
@@ -175,7 +186,6 @@
       </ion-card-header>
 
       <ion-card-content>
-        <!-- Requisitos de contraseña -->
         <ion-note color="medium" style="display: block; margin-bottom: 12px; font-size: 0.82rem;">
           💡 <strong>La contraseña debe tener:</strong> al menos 8 caracteres, 1 mayúscula, 1 minúscula, 1 número y 1 carácter especial (ej: @, #, $, !).
         </ion-note>
@@ -183,7 +193,7 @@
         <form (ngSubmit)="cambiarPassword()">
           <ion-list lines="none" class="info-list">
 
-            <!-- NUEVA CONTRASEÑA CON OJITO -->
+            <!-- NUEVA CONTRASEÑA -->
             <ion-item class="info-item">
               <ion-icon name="lock-closed-outline" slot="start" color="medium"></ion-icon>
               <ion-input 
@@ -199,7 +209,7 @@
               </ion-button>
             </ion-item>
 
-            <!-- CONFIRMAR NUEVA CONTRASEÑA CON OJITO -->
+            <!-- CONFIRMAR NUEVA CONTRASEÑA -->
             <ion-item class="info-item">
               <ion-icon name="checkmark-done-outline" slot="start" color="medium"></ion-icon>
               <ion-input 
@@ -225,6 +235,7 @@
       </ion-card-content>
     </ion-card>
 
+    <!-- CERRAR SESIÓN -->
     <ion-list class="options-list">
       <ion-item button (click)="cerrarSesion()" detail="false" class="option-item logout-item">
         <ion-icon name="log-out-outline" slot="start" color="danger"></ion-icon>
@@ -234,8 +245,8 @@
 
   </div>
 
-  <!-- PESTAÑA: HISTORIAL PUNTOS -->
-  <div *ngIf="segmentoSeleccionado === 'historial'" class="tab-padding">
+  <!-- PESTAÑA: HISTORIAL PUNTOS (PROTEGIDO) -->
+  <div *ngIf="segmentoSeleccionado === 'historial' && !esDocente" class="tab-padding">
     <div class="section-title margin-top-section">
       <h2><ion-icon name="trophy-outline" color="warning"></ion-icon> Puntos Ganados</h2>
     </div>
@@ -263,8 +274,8 @@
     </div>
   </div>
 
-  <!-- PESTAÑA: CANJES -->
-  <div *ngIf="segmentoSeleccionado === 'canjes'" class="tab-padding">
+  <!-- PESTAÑA: CANJES (PROTEGIDO) -->
+  <div *ngIf="segmentoSeleccionado === 'canjes' && !esDocente" class="tab-padding">
     <div class="section-title margin-top-section">
       <h2><ion-icon name="gift-outline" color="tertiary"></ion-icon> Premios Entregados</h2>
     </div>
