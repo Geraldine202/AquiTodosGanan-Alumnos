@@ -109,13 +109,22 @@ cargarSolicitudes(event?: any, esSilencioso: boolean = false) {
     this.cargando = true;
   }
 
-  // Todos los roles de gestión (Admin, Docente y Consejero) consultan las solicitudes.
-  // La regla de auto-aprobación la gestiona esSuPropiaSolicitud(item) deshabilitando botones.
-  const peticion$ = this.actividadService.obtenerCanjes();
+  const rutLogueadoLimpio = this.limpiarRut(this.rutUsuarioLogueado);
+
+  if (!rutLogueadoLimpio) {
+    this.cargando = false;
+    return;
+  }
+
+  // 1. Si es Administrador General (Tipo 2), obtiene todos los canjes.
+  // 2. Para los demás roles, consulta el endpoint específico por responsable.
+  const peticion$ = (this.idTipoUsuarioLogueado === 2)
+    ? this.actividadService.obtenerCanjes()
+    : this.actividadService.obtenerCanjesPorResponsable(rutLogueadoLimpio);
 
   peticion$.subscribe({
     next: (data: any[]) => {
-      // Mapear la información obtenida para la vista (SIN EXCLUIR NINGUNA SOLICITUD)
+      // Mapear los datos devueltos (ya vienen filtrados desde el backend)
       this.solicitudes = (data || []).map(item => {
         const usr = Array.isArray(item.usuario) ? item.usuario[0] : item.usuario;
         const idSedeUsuario = usr?.id_sede ? Number(usr.id_sede) : null;
@@ -195,7 +204,6 @@ cargarSolicitudes(event?: any, esSilencioso: boolean = false) {
     }
   });
 }
-
 
   aplicarFiltros() {
     this.solicitudesFiltradas = this.solicitudes.filter(item => {
