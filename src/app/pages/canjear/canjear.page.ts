@@ -17,6 +17,7 @@ export class CanjearPage implements OnInit {
   misPuntos: number = 0;
 
   premios: any[] = [];
+  rawCatalogo: any[] = []; // Guarda la lista devuelta por la API para re-evaluar rápido sin parpadeos
   solicitudesPendientesIds: number[] = [];
   premiosCanjeadosIds: number[] = [];
   
@@ -49,15 +50,16 @@ export class CanjearPage implements OnInit {
 
   private limpiarRut(rut: any): string {
     if (!rut) return '';
-    return String(rut).replace(/[^0-9kK]/g, '').trim();
+    return String(rut).replace(/[^0-9kK]/g, '').trim().toUpperCase();
   }
 
   cargarDatos() {
+    // 1. Lectura con estándar idéntico a PerfilPage (prioriza sessionStorage)
     const possibleKeys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
     let sessionData: any = null;
 
     for (const key of possibleKeys) {
-      const val = localStorage.getItem(key) || sessionStorage.getItem(key);
+      const val = sessionStorage.getItem(key) || localStorage.getItem(key);
       if (val) {
         sessionData = val;
         break;
@@ -70,59 +72,58 @@ export class CanjearPage implements OnInit {
       return;
     }
 
-    let identificador = sessionData;
-
+    let objetoLocal: any = null;
     try {
       if (typeof sessionData === 'string' && sessionData.trim().startsWith('{')) {
-        this.usuarioLogueado = JSON.parse(sessionData);
-        identificador = this.usuarioLogueado.rut_usuario || 
-                        this.usuarioLogueado.rut || 
-                        this.usuarioLogueado.token || 
-                        sessionData;
+        objetoLocal = JSON.parse(sessionData);
       } else {
-        this.usuarioLogueado = { rut_usuario: sessionData };
+        objetoLocal = { rut_usuario: sessionData };
       }
     } catch (e) {
-      this.usuarioLogueado = { rut_usuario: sessionData };
+      objetoLocal = { rut_usuario: sessionData };
     }
 
-    // 1. ASIGNACIÓN E IMPRESIÓN INSTANTÁNEA EN UI (Carga optimista desde caché)
-    if (this.usuarioLogueado) {
+    this.usuarioLogueado = objetoLocal;
+
+    const rutRaw = objetoLocal?.rut_usuario || objetoLocal?.rut || objetoLocal?.alumno?.rut_usuario || sessionData;
+    const rutLimpio = this.limpiarRut(rutRaw);
+
+    if (!rutLimpio) {
+      this.cargando = false;
+      return;
+    }
+
+    // Carga inicial optimista desde datos locales
+    if (objetoLocal) {
       this.misPuntos = Number(
-        this.usuarioLogueado.puntaje_total ?? 
-        this.usuarioLogueado.puntaje ?? 
-        this.usuarioLogueado.puntos ?? 
+        objetoLocal.puntaje_total ?? 
+        objetoLocal.puntaje ?? 
+        objetoLocal.puntos ?? 
         0
       );
 
-      if (this.usuarioLogueado.nivelUsuarioInfo) {
-        this.nivelUsuario = this.usuarioLogueado.nivelUsuarioInfo;
-      } else if (this.usuarioLogueado.nivelUsuario) {
-        this.nivelUsuario = this.usuarioLogueado.nivelUsuario;
+      if (objetoLocal.nivelUsuarioInfo) {
+        this.nivelUsuario = objetoLocal.nivelUsuarioInfo;
+      } else if (objetoLocal.nivelUsuario) {
+        this.nivelUsuario = objetoLocal.nivelUsuario;
       }
 
-      // Si ya hay catálogo en memoria, ocultar spinner inmediatamente
-      if (this.premios && this.premios.length > 0) {
-        this.cargando = false;
-      }
       this.cdRef.detectChanges();
     }
 
-    const rutRaw = this.usuarioLogueado?.rut_usuario || this.usuarioLogueado?.rut || identificador;
-    const rutLimpio = this.limpiarRut(rutRaw) || rutRaw;
     const servicioAny: any = this.actividadService;
 
-    // 2. PETICIONES EN PARALELO EN SEGUNDO PLANO
+    // 2. Consultas en paralelo a la base de datos
     const reqPuntos = typeof servicioAny.getPuntajeTotal === 'function'
       ? servicioAny.getPuntajeTotal(rutLimpio).pipe(catchError(() => of(null)))
       : of(null);
 
     const reqNivel = typeof servicioAny.getNivelUsuario === 'function'
-      ? servicioAny.getNivelUsuario(rutLimpio).pipe(catchError(() => of(this.nivelUsuario)))
-      : of(this.nivelUsuario);
+      ? servicioAny.getNivelUsuario(rutLimpio).pipe(catchError(() => of(null)))
+      : of(null);
 
     const reqSolicitudes = typeof servicioAny.getSolicitudesCanjeUsuario === 'function'
-      ? servicioAny.getSolicitudesCanjeUsuario(rutRaw).pipe(catchError(() => of([])))
+      ? servicioAny.getSolicitudesCanjeUsuario(rutLimpio).pipe(catchError(() => of([])))
       : of([]);
 
     const reqCatalogo = typeof servicioAny.getPremios === 'function'
@@ -131,55 +132,55 @@ export class CanjearPage implements OnInit {
 
     forkJoin({
       resPuntos: reqPuntos,
-      nivel: reqNivel,
+      resNivel: reqNivel,
       solicitudes: reqSolicitudes,
       catalogo: reqCatalogo
     }).subscribe({
-      next: (res: any) => {
-        // A) Actualizar Puntos de forma precisa
-        if (res.resPuntos !== null && res.resPuntos !== undefined) {
-          let nuevosPuntos = 0;
-          if (typeof res.resPuntos === 'number') {
-            nuevosPuntos = res.resPuntos;
-          } else if (typeof res.resPuntos === 'object') {
-            nuevosPuntos = Number(res.resPuntos.puntaje_total ?? res.resPuntos.puntaje ?? res.resPuntos.puntos ?? res.resPuntos.total ?? 0);
-          } else {
-            nuevosPuntos = Number(this.usuarioLogueado?.puntaje_total ?? 0);
-          }
+      next: ({ resPuntos, resNivel, solicitudes, catalogo }: any) => {
+        
+        // Extracción exacta de puntos oficiales desde BD (mismo mapeo de PerfilPage)
+        let puntosOficialesBD = this.misPuntos;
+        if (typeof resPuntos === 'number') {
+          puntosOficialesBD = resPuntos;
+        } else if (resPuntos && typeof resPuntos === 'object') {
+          puntosOficialesBD = Number(
+            resPuntos.puntaje_total ?? 
+            resPuntos.puntaje ?? 
+            resPuntos.puntos ?? 
+            resPuntos.total ?? 
+            0
+          );
+        }
 
-          this.misPuntos = nuevosPuntos;
+        this.misPuntos = puntosOficialesBD;
 
+        if (this.usuarioLogueado) {
+          this.usuarioLogueado.puntaje_total = puntosOficialesBD;
+          this.usuarioLogueado.puntaje = puntosOficialesBD;
+          this.usuarioLogueado.puntos = puntosOficialesBD;
+          this.actualizarSesionLocal(this.usuarioLogueado);
+        }
+
+        // Nivel del usuario
+        if (resNivel) {
+          this.nivelUsuario = resNivel;
           if (this.usuarioLogueado) {
-            this.usuarioLogueado.puntaje_total = nuevosPuntos;
-            this.usuarioLogueado.puntaje = nuevosPuntos;
-            this.usuarioLogueado.puntos = nuevosPuntos;
-            this.actualizarSesionLocal(this.usuarioLogueado);
+            this.usuarioLogueado.nivelUsuarioInfo = resNivel;
           }
         }
 
-        // B) Actualizar Nivel
-        if (res.nivel) {
-          this.nivelUsuario = res.nivel;
-          const idNivel = Number(res.nivel.id_nivel ?? 1);
-          if (this.usuarioLogueado) {
-            this.usuarioLogueado.nivelUsuarioInfo = res.nivel;
-            this.usuarioLogueado.nivelUsuario = res.nivel;
-            this.usuarioLogueado.nivelAlumno = res.nivel.nombre_nivel;
-            this.usuarioLogueado.colorNivel = idNivel === 3 ? 'medium' : idNivel === 2 ? 'warning' : 'tertiary';
-          }
-        }
-
-        // C) Procesar solicitudes y catálogo
-        const listaSolicitudes = Array.isArray(res.solicitudes) ? res.solicitudes : (res.solicitudes?.data || []);
+        // Procesamiento de solicitudes activas y catálogo
+        const listaSolicitudes = Array.isArray(solicitudes) ? solicitudes : (solicitudes?.data || []);
         this.procesarSolicitudes(listaSolicitudes);
 
-        const listaPremios = Array.isArray(res.catalogo) ? res.catalogo : (res.catalogo?.data || []);
-        this.procesarCatalogoPremios(listaPremios);
+        this.rawCatalogo = Array.isArray(catalogo) ? catalogo : (catalogo?.data || []);
+        this.procesarCatalogoPremios(this.rawCatalogo);
 
         this.cargando = false;
         this.cdRef.detectChanges();
       },
-      error: () => {
+      error: (err: any) => {
+        console.error('Error al cargar datos en CanjearPage:', err);
         this.cargando = false;
         this.cdRef.detectChanges();
       }
@@ -211,78 +212,71 @@ export class CanjearPage implements OnInit {
     });
   }
 
-private procesarCatalogoPremios(lista: any[]) {
-  // Extraer el ID de sede del usuario logueado (soportando distintas estructuras)
-  const idSedeAlumno = Number(
-    this.usuarioLogueado?.id_sede ?? 
-    this.usuarioLogueado?.sede?.id_sede ?? 
-    this.usuarioLogueado?.alumno?.id_sede ?? 
-    0
-  );
+  private procesarCatalogoPremios(lista: any[]) {
+    const idSedeAlumno = Number(
+      this.usuarioLogueado?.id_sede ?? 
+      this.usuarioLogueado?.sede?.id_sede ?? 
+      this.usuarioLogueado?.alumno?.id_sede ?? 
+      0
+    );
 
-  this.premios = (lista || [])
-    .filter((item: any) => {
-      // 1. Validar Visibilidad General
-      const esVisible = item.estado_visibilidad === true || item.estado_visibilidad === 1 || String(item.estado_visibilidad) === 'true';
-      if (!esVisible) return false;
+    this.premios = (lista || [])
+      .filter((item: any) => {
+        const esVisible = item.estado_visibilidad === true || item.estado_visibilidad === 1 || String(item.estado_visibilidad) === 'true';
+        if (!esVisible) return false;
 
-      // 2. FILTRO ESTRICTO POR SEDE: Si idSedeAlumno existe (> 0) y el premio especifica stock por sede,
-      // solo se conserva si el premio tiene un registro configurado para LA SEDE DEL ALUMNO.
-      if (idSedeAlumno > 0 && Array.isArray(item.stock_sede) && item.stock_sede.length > 0) {
-        const perteneceASede = item.stock_sede.some((st: any) => Number(st.id_sede) === idSedeAlumno);
-        if (!perteneceASede) {
-          return false; // Se descarta visualmente este premio para esta sede
+        if (idSedeAlumno > 0 && Array.isArray(item.stock_sede) && item.stock_sede.length > 0) {
+          const perteneceASede = item.stock_sede.some((st: any) => Number(st.id_sede) === idSedeAlumno);
+          if (!perteneceASede) return false;
         }
-      }
 
-      return true;
-    })
-    .map((item: any) => {
-      const idPremioNum = Number(item.id_premio);
+        return true;
+      })
+      .map((item: any) => {
+        const idPremioNum = Number(item.id_premio);
 
-      // Calcular stock de la sede actual
-      let stockCalculado = 0;
-      if (Array.isArray(item.stock_sede) && item.stock_sede.length > 0) {
-        const stockSedeUsuario = item.stock_sede.find((st: any) => Number(st.id_sede) === idSedeAlumno);
-        stockCalculado = Number(stockSedeUsuario ? stockSedeUsuario.cantidad : 0);
-      } else if (item.cantidad !== undefined && item.cantidad !== null) {
-        stockCalculado = Number(item.cantidad);
-      } else {
-        stockCalculado = Number(item.stock ?? item.cantidad_disponible ?? 0);
-      }
+        let stockCalculado = 0;
+        if (Array.isArray(item.stock_sede) && item.stock_sede.length > 0) {
+          const stockSedeUsuario = item.stock_sede.find((st: any) => Number(st.id_sede) === idSedeAlumno);
+          stockCalculado = Number(stockSedeUsuario ? stockSedeUsuario.cantidad : 0);
+        } else if (item.cantidad !== undefined && item.cantidad !== null) {
+          stockCalculado = Number(item.cantidad);
+        } else {
+          stockCalculado = Number(item.stock ?? item.cantidad_disponible ?? 0);
+        }
 
-      const costo = Number(item.puntos_requeridos ?? item.costo_puntos ?? 0);
-      const idNivelRequerido = Number(item.id_nivel ?? item.nivel?.id_nivel ?? 1);
-      const nombreNivelReq = item.nivel?.nombre_nivel || item.nombre_nivel || (idNivelRequerido === 3 ? 'Platino' : idNivelRequerido === 2 ? 'Oro' : 'Bronce');
+        const costo = Number(item.puntos_requeridos ?? item.costo_puntos ?? 0);
+        const idNivelRequerido = Number(item.id_nivel ?? item.nivel?.id_nivel ?? 1);
+        const nombreNivelReq = item.nivel?.nombre_nivel || item.nombre_nivel || (idNivelRequerido === 3 ? 'Platino' : idNivelRequerido === 2 ? 'Oro' : 'Bronce');
 
-      const cumpleNivel = (this.nivelUsuario.id_nivel ?? 1) >= idNivelRequerido;
-      const estaPendiente = this.solicitudesPendientesIds.some(id => Number(id) === idPremioNum);
-      const yaFueCanjeado = this.premiosCanjeadosIds.some(id => Number(id) === idPremioNum);
+        const cumpleNivel = (this.nivelUsuario.id_nivel ?? 1) >= idNivelRequerido;
+        const estaPendiente = this.solicitudesPendientesIds.some(id => Number(id) === idPremioNum);
+        const yaFueCanjeado = this.premiosCanjeadosIds.some(id => Number(id) === idPremioNum);
 
-      let colorBoton = 'success';
-      if (!cumpleNivel || yaFueCanjeado || stockCalculado <= 0 || this.misPuntos < costo) {
-        colorBoton = 'medium';
-      } else if (estaPendiente) {
-        colorBoton = 'tertiary';
-      }
+        let colorBoton = 'success';
+        if (!cumpleNivel || yaFueCanjeado || stockCalculado <= 0 || this.misPuntos < costo) {
+          colorBoton = 'medium';
+        } else if (estaPendiente) {
+          colorBoton = 'tertiary';
+        }
 
-      return {
-        id_premio: idPremioNum,
-        nombre: item.descripcion || item.nombre_premio || 'Premio',
-        descripcion: item.descripcion || 'Sin descripción disponible.',
-        costo_puntos: isNaN(costo) ? 0 : costo,
-        stock: isNaN(stockCalculado) ? 0 : stockCalculado,
-        imagen: item.imagen || 'assets/logo.png',
-        id_nivel: idNivelRequerido,
-        nombre_nivel: nombreNivelReq,
-        cumple_nivel: cumpleNivel,
-        color_boton: colorBoton,
-        solicitado: estaPendiente,
-        ya_canjeado: yaFueCanjeado,
-        procesando: false
-      };
-    });
-}
+        return {
+          id_premio: idPremioNum,
+          nombre: item.descripcion || item.nombre_premio || 'Premio',
+          descripcion: item.descripcion || 'Sin descripción disponible.',
+          costo_puntos: isNaN(costo) ? 0 : costo,
+          stock: isNaN(stockCalculado) ? 0 : stockCalculado,
+          imagen: item.imagen || 'assets/logo.png',
+          id_nivel: idNivelRequerido,
+          nombre_nivel: nombreNivelReq,
+          cumple_nivel: cumpleNivel,
+          color_boton: colorBoton,
+          solicitado: estaPendiente,
+          ya_canjeado: yaFueCanjeado,
+          procesando: false
+        };
+      });
+  }
 
   async confirmarCanje(premio: any) {
     if (!premio.cumple_nivel) {
@@ -340,9 +334,31 @@ private procesarCatalogoPremios(lista: any[]) {
       servicioAny.canjearPremio(payload).subscribe({
         next: async (res: any) => {
           premio.procesando = false;
+
+          // 1. Descuento optimista instantáneo
+          this.misPuntos = Math.max(0, this.misPuntos - premio.costo_puntos);
+
+          if (this.usuarioLogueado) {
+            this.usuarioLogueado.puntaje_total = this.misPuntos;
+            this.usuarioLogueado.puntaje = this.misPuntos;
+            this.usuarioLogueado.puntos = this.misPuntos;
+            this.actualizarSesionLocal(this.usuarioLogueado);
+          }
+
+          // 2. Marcado de solicitud enviada en memoria
+          if (!this.solicitudesPendientesIds.includes(premio.id_premio)) {
+            this.solicitudesPendientesIds.push(premio.id_premio);
+          }
+          if (!this.premiosCanjeadosIds.includes(premio.id_premio)) {
+            this.premiosCanjeadosIds.push(premio.id_premio);
+          }
+
+          // 3. Re-evaluación rápida de catálogo para actualizar estado de botones
+          this.procesarCatalogoPremios(this.rawCatalogo);
+          this.cdRef.detectChanges();
+
           const msg = res?.mensaje || '¡Solicitud enviada con éxito!';
           await this.mostrarToast(msg, 'success');
-          this.cargarDatos();
         },
         error: async (err: any) => {
           premio.procesando = false;
@@ -385,9 +401,27 @@ private procesarCatalogoPremios(lista: any[]) {
       servicioAny.cancelarSolicitudCanje(payload).subscribe({
         next: async (res: any) => {
           premio.procesando = false;
+
+          // 1. Reembolso optimista instantáneo
+          this.misPuntos = this.misPuntos + premio.costo_puntos;
+
+          if (this.usuarioLogueado) {
+            this.usuarioLogueado.puntaje_total = this.misPuntos;
+            this.usuarioLogueado.puntaje = this.misPuntos;
+            this.usuarioLogueado.puntos = this.misPuntos;
+            this.actualizarSesionLocal(this.usuarioLogueado);
+          }
+
+          // 2. Liberar el estado en memoria
+          this.solicitudesPendientesIds = this.solicitudesPendientesIds.filter(id => Number(id) !== Number(premio.id_premio));
+          this.premiosCanjeadosIds = this.premiosCanjeadosIds.filter(id => Number(id) !== Number(premio.id_premio));
+
+          // 3. Re-evaluar catálogo
+          this.procesarCatalogoPremios(this.rawCatalogo);
+          this.cdRef.detectChanges();
+
           const msg = res?.mensaje || 'Solicitud cancelada correctamente.';
           await this.mostrarToast(msg, 'success');
-          this.cargarDatos();
         },
         error: async (err: any) => {
           premio.procesando = false;
@@ -402,10 +436,10 @@ private procesarCatalogoPremios(lista: any[]) {
   private actualizarSesionLocal(usuarioObj: any) {
     if (!usuarioObj) return;
     const possibleKeys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
-    
+
     possibleKeys.forEach(key => {
-      localStorage.setItem(key, JSON.stringify(usuarioObj));
       sessionStorage.setItem(key, JSON.stringify(usuarioObj));
+      localStorage.setItem(key, JSON.stringify(usuarioObj));
     });
 
     if (this.alumnoService && typeof (this.alumnoService as any).notificarCambioUsuario === 'function') {
