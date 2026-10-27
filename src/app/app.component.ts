@@ -1,7 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostListener } from '@angular/core';
 import { register } from 'swiper/element/bundle';
 import { MenuController } from '@ionic/angular';
 import { AlumnoService } from 'src/app/services/alumno';
+import { Subscription } from 'rxjs';
 
 register();
 
@@ -11,9 +12,10 @@ register();
   styleUrls: ['app.component.scss'],
   standalone: false,
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   
   usuarioActual: any = null;
+  private subUsuario!: Subscription;
 
   constructor(
     private menuCtrl: MenuController,
@@ -22,13 +24,18 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // 1. Cargar estado inicial inmediatamente
+    this.limpiarCacheObsoleto();
+
+    // 1. Carga inmediata desde el storage local
     this.cargarUsuarioInicial();
 
-    // 2. Escuchar cambios de sesión en tiempo real
-    this.alumnoService.usuario$.subscribe((usr) => {
+    // 2. Consulta en vivo a la Base de Datos para asegurar que el rol no esté desactualizado
+    this.revalidarUsuarioConBD();
+
+    // 3. Escuchar cambios emitidos en tiempo real por el servicio
+    this.subUsuario = this.alumnoService.usuario$.subscribe((usr) => {
       if (usr) {
-        this.usuarioActual = usr;
+        this.usuarioActual = typeof usr === 'string' && usr.trim().startsWith('{') ? JSON.parse(usr) : usr;
         this.menuCtrl.enable(true);
       } else {
         this.usuarioActual = null;
@@ -39,22 +46,67 @@ export class AppComponent implements OnInit {
     });
   }
 
-  cargarUsuarioInicial() {
-    const sessionData = sessionStorage.getItem('usuarioLogueado') || 
-                        sessionStorage.getItem('usuario') || 
-                        sessionStorage.getItem('user');
-    
-    if (sessionData) {
-      try {
-        this.usuarioActual = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
-        this.menuCtrl.enable(true);
-      } catch (e) {
-        console.error('Error parseando usuario en app.component:', e);
-        this.deshabilitarMenu();
+  ngOnDestroy() {
+    if (this.subUsuario) {
+      this.subUsuario.unsubscribe();
+    }
+  }
+
+  // Revalida con la Base de Datos cada vez que el usuario vuelve a enfocar la pestaña
+  @HostListener('window:focus')
+  onWindowFocus() {
+    this.revalidarUsuarioConBD();
+  }
+
+  /**
+   * Consulta directa al backend para sincronizar la sesión con la BD real
+   */
+  public revalidarUsuarioConBD() {
+    const sesionLocal = this.alumnoService.obtenerUsuarioSesion();
+    if (!sesionLocal) return;
+
+    const rutRaw = sesionLocal.rut_usuario || sesionLocal.rut;
+    if (!rutRaw) return;
+
+    const rutLimpio = String(rutRaw).replace(/[^0-9kK]/g, '').trim();
+
+    this.alumnoService.getAlumnoByRut(rutLimpio).subscribe({
+      next: (res: any) => {
+        const datosBD = res?.data || res?.alumno || res;
+        if (datosBD && (datosBD.id_tipo_usuario !== undefined || datosBD.rut_usuario)) {
+          const usuarioSincronizado = {
+            ...sesionLocal,
+            ...datosBD,
+            id_tipo_usuario: Number(datosBD.id_tipo_usuario ?? sesionLocal.id_tipo_usuario)
+          };
+
+          // Actualiza sessionStorage y notifica a la app
+          this.alumnoService.notificarCambioUsuario(usuarioSincronizado);
+        }
+      },
+      error: (err) => {
+        console.warn('No se pudo revalidar la sesión con la BD:', err);
       }
+    });
+  }
+
+  private limpiarCacheObsoleto() {
+    const keys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
+    keys.forEach(k => localStorage.removeItem(k));
+  }
+
+  cargarUsuarioInicial() {
+    const sesion = this.alumnoService.obtenerUsuarioSesion();
+    
+    if (sesion) {
+      this.usuarioActual = typeof sesion === 'string' && sesion.trim().startsWith('{')
+        ? JSON.parse(sesion) 
+        : sesion;
+      this.menuCtrl.enable(true);
     } else {
       this.deshabilitarMenu();
     }
+    this.cdRef.detectChanges();
   }
 
   deshabilitarMenu() {
@@ -74,14 +126,36 @@ export class AppComponent implements OnInit {
     return !!this.usuarioActual;
   }
 
-  private obtenerTipoUsuario(): number {
+  public obtenerTipoUsuario(): number {
     if (!this.usuarioActual) return 0;
 
-    return Number(
-      this.usuarioActual.id_tipo_usuario ?? 
-      this.usuarioActual.tipo_usuario?.id_tipo_usuario ?? 
-      0
-    );
+    const rawId = this.usuarioActual.id_tipo_usuario ?? 
+                  this.usuarioActual.tipo_usuario?.id_tipo_usuario ?? 
+                  this.usuarioActual.alumno?.id_tipo_usuario ?? 
+                  this.usuarioActual.datos_alumno?.id_tipo_usuario ?? 
+                  0;
+
+    return Number(rawId);
+  }
+
+  get idTipoUsuario(): number {
+    return this.obtenerTipoUsuario();
+  }
+
+  get esEstudiante(): boolean {
+    return this.idTipoUsuario === 1;
+  }
+
+  get esAdmin(): boolean {
+    return this.idTipoUsuario === 2;
+  }
+
+  get esDocente(): boolean {
+    return this.idTipoUsuario === 3;
+  }
+
+  get esConsejero(): boolean {
+    return this.idTipoUsuario === 4;
   }
 
   esAlumnoOConsejero(): boolean {

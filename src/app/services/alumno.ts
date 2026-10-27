@@ -42,14 +42,11 @@ export interface HistorialPayload {
 export class AlumnoService {
   private baseUrl = 'http://localhost:3000';
 
-  // ESTADO REACTIVO DE SESIÓN
+  // ESTADO REACTIVO DE SESIÓN (Usa sessionStorage exclusivamente)
   private usuarioSubject = new BehaviorSubject<any>(this.obtenerUsuarioSesion());
   public usuario$ = this.usuarioSubject.asObservable();
-  constructor(private http: HttpClient) { }
 
-  // ==========================================
-  // HELPER PARA EMPAQUETAR FORM DATA
-  // ==========================================
+  constructor(private http: HttpClient) { }
 
   private construirPayload(alumnoData: AlumnoPayload | { direccion?: string; telefono?: string } | FormData, foto?: File): FormData | any {
     if (alumnoData instanceof FormData) {
@@ -83,46 +80,69 @@ export class AlumnoService {
     return this.http.post<any>(`${this.baseUrl}/alumnos`, payload);
   }
 
+  /**
+   * Edita la información del alumno. Si el alumno editado es el mismo de la sesión activa,
+   * actualiza sessionStorage y notifica a toda la app al instante.
+   */
   editAlumno(rut: string, alumnoData: AlumnoPayload | FormData, foto?: File): Observable<any> {
     const payload = this.construirPayload(alumnoData, foto);
-    return this.http.put<any>(`${this.baseUrl}/alumnos/${rut}`, payload);
+    return this.http.put<any>(`${this.baseUrl}/alumnos/${encodeURIComponent(rut)}`, payload).pipe(
+      tap((res: any) => {
+        const usuarioSesion = this.obtenerUsuarioSesion();
+        if (usuarioSesion) {
+          const rutLimpioSesion = String(usuarioSesion.rut_usuario || usuarioSesion.rut || '').replace(/[^0-9kK]/g, '').toUpperCase();
+          const rutLimpioEditado = String(rut).replace(/[^0-9kK]/g, '').toUpperCase();
+
+          if (rutLimpioSesion === rutLimpioEditado) {
+            const devuelto = res?.usuario || res?.alumno || res?.data || res;
+            
+            // Extraer el id_tipo_usuario de forma tipo-segura sin romper FormData
+            const idTipoFallback = !(alumnoData instanceof FormData) ? alumnoData.id_tipo_usuario : undefined;
+            const nuevoTipo = devuelto?.id_tipo_usuario ?? idTipoFallback ?? usuarioSesion.id_tipo_usuario;
+
+            const usuarioActualizado = {
+              ...usuarioSesion,
+              ...devuelto,
+              id_tipo_usuario: Number(nuevoTipo)
+            };
+            
+            this.notificarCambioUsuario(usuarioActualizado);
+          }
+        }
+      })
+    );
   }
 
   /**
-   * Actualiza únicamente la foto, dirección y teléfono del alumno desde el perfil.
-   * Actualiza automáticamente el estado del usuario en sesión local (localStorage + BehaviorSubject).
+   * Actualiza la foto, dirección y teléfono desde el perfil.
    */
   actualizarPerfil(rut: string, perfilData: { direccion?: string; telefono?: string }, foto?: File): Observable<any> {
     const payload = this.construirPayload(perfilData, foto);
     return this.http.put<any>(`${this.baseUrl}/alumnos/perfil/${encodeURIComponent(rut)}`, payload).pipe(
       tap((res: any) => {
-        if (res && res.usuario) {
+        if (res && (res.usuario || res.alumno)) {
           const usuarioActual = this.obtenerUsuarioSesion() || {};
-          const usuarioActualizado = { ...usuarioActual, ...res.usuario };
-          
-          localStorage.setItem('usuarioLogueado', JSON.stringify(usuarioActualizado));
-          this.usuarioSubject.next(usuarioActualizado);
+          const devuelto = res.usuario || res.alumno;
+          const usuarioActualizado = { ...usuarioActual, ...devuelto };
+
+          this.notificarCambioUsuario(usuarioActualizado);
         }
       })
     );
   }
-cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<any> {
-  const body = {
-    rut_usuario,
-    nueva_password
-  };
-  return this.http.put(`${this.baseUrl}/auth/cambiar-password-perfil`, body);
-}
+
+  cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<any> {
+    const body = { rut_usuario, nueva_password };
+    return this.http.put(`${this.baseUrl}/auth/cambiar-password-perfil`, body);
+  }
 
   deleteAlumno(rut: string) {
-    // Elimina los puntos del RUT dejando solo números y dígito verificador (ej: "22222222-2")
     const rutLimpio = rut.replace(/\./g, '');
-    
     return this.http.delete(`${this.baseUrl}/alumnos/${encodeURIComponent(rutLimpio)}`);
   }
 
   // ==========================================
-  // MÉTODOS DE HISTORIAL ACADÉMICO
+  // HISTORIAL ACADÉMICO Y CATÁLOGOS
   // ==========================================
 
   getHistorialByRut(rut: string): Observable<any[]> {
@@ -136,10 +156,6 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
   deleteHistorial(idHistorial: number): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/alumnos/historial_academico/${idHistorial}`);
   }
-
-  // ==========================================
-  // MÉTODOS DE GESTIÓN DE CATÁLOGOS Y CARRERAS
-  // ==========================================
 
   getCarreras(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/carreras`);
@@ -174,7 +190,7 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
   }
 
   // ==========================================
-  // MÉTODOS DE AUTENTICACIÓN Y RECUPERACIÓN
+  // AUTENTICACIÓN Y CONTROL DE SESIÓN
   // ==========================================
 
   login(credenciales: { correo: string; password: string }): Observable<any> {
@@ -213,10 +229,6 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
     return of(null);
   }
 
-  // ==========================================
-  // CONTROL DE SESIÓN Y LOCALSTORAGE
-  // ==========================================
-
   guardarSesion(respuestaLogin: any) {
     if (!respuestaLogin) {
       console.error('La respuesta de login está vacía');
@@ -227,21 +239,18 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
     const token = respuestaLogin.token_acceso;
 
     if (usuario) {
-      localStorage.setItem('usuarioLogueado', JSON.stringify(usuario));
+      this.notificarCambioUsuario(usuario);
 
       if (token) {
-        localStorage.setItem('tokenAcceso', token);
+        sessionStorage.setItem('tokenAcceso', token);
       }
-
-      this.usuarioSubject.next(usuario);
     } else {
       console.error('Intento de guardar una sesión con datos inválidos:', respuestaLogin);
     }
   }
 
-
   obtenerToken(): string | null {
-    return localStorage.getItem('tokenAcceso');
+    return sessionStorage.getItem('tokenAcceso');
   }
 
   estaLogueado(): boolean {
@@ -249,8 +258,8 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
   }
 
   limpiarSesionLocal() {
-    localStorage.removeItem('usuarioLogueado');
-    localStorage.removeItem('tokenAcceso');
+    const keys = ['usuarioLogueado', 'usuario', 'user', 'currentUser', 'tokenAcceso'];
+    keys.forEach(k => sessionStorage.removeItem(k));
     this.usuarioSubject.next(null);
   }
 
@@ -264,22 +273,54 @@ cambiarPasswordPerfil(rut_usuario: string, nueva_password: string): Observable<a
   cerrarSesion() {
     this.logout().subscribe();
   }
+
+  /**
+   * Obtiene la sesión actual desde sessionStorage.
+   */
   obtenerUsuarioSesion(): any {
-    const sessionData = localStorage.getItem('usuarioLogueado') || 
-                        localStorage.getItem('usuario') || 
-                        localStorage.getItem('user');
-    if (sessionData) {
-      try {
-        return typeof sessionData === 'string' && sessionData.trim().startsWith('{') 
-               ? JSON.parse(sessionData) 
-               : sessionData;
-      } catch (e) {
-        return null;
+    const keys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
+    for (const key of keys) {
+      const data = sessionStorage.getItem(key);
+      if (data) {
+        try {
+          return typeof data === 'string' && data.trim().startsWith('{')
+            ? JSON.parse(data)
+            : data;
+        } catch (e) {
+          return null;
+        }
       }
     }
     return null;
   }
-  notificarCambioUsuario(usuario: any) {
-      this.usuarioSubject.next(usuario);
-    }
+
+  /**
+   * Guarda en sessionStorage asegurando la estructura del id_tipo_usuario 
+   * y notifica a todos los componentes suscritos en tiempo real.
+   */
+  public notificarCambioUsuario(usuario: any) {
+    if (!usuario) return;
+
+    // Normaliza id_tipo_usuario directamente en la raíz del objeto
+    const idTipo = Number(
+      usuario.id_tipo_usuario ?? 
+      usuario.tipo_usuario?.id_tipo_usuario ?? 
+      usuario.alumno?.id_tipo_usuario ?? 
+      1
+    );
+
+    const usuarioFormateado = {
+      ...usuario,
+      id_tipo_usuario: idTipo
+    };
+
+    const strData = JSON.stringify(usuarioFormateado);
+    const keys = ['usuarioLogueado', 'usuario', 'user', 'currentUser'];
+    
+    keys.forEach(k => {
+      sessionStorage.setItem(k, strData);
+    });
+
+    this.usuarioSubject.next(usuarioFormateado);
+  }
 }
